@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:io';
 
 import 'package:pokepiko/data/pokemon_repository.dart';
+import 'package:pokepiko/models/dex_entry.dart';
 import 'package:pokepiko/models/poke_type.dart';
 import 'package:pokepiko/models/pokemon.dart';
 
@@ -57,6 +58,42 @@ class FakePokemonRepository implements PokemonRepository {
   Future<File> getImage(String url) => imagesFail
       ? Future.error(const FileSystemException('no image'))
       : Completer<File>().future;
+
+  final Set<int> savedDex = {}; // 図鑑データを保存済みのつもりの図鑑番号
+
+  /// 図鑑のテスト用：番号 n のポケモンは、n → n+1 に進化することにする
+  static DexEntry dexOf(int id) => DexEntry(
+    id: id,
+    genusKana: 'テストポケモン',
+    genusKanji: '試験ポケモン',
+    flavorKana: 'ひらがなの せつめい $id',
+    flavorKanji: '漢字の説明 $id',
+    heightDm: 4,
+    weightHg: 60,
+    cryUrl: 'https://example.com/cry/$id.ogg',
+    evolution: [
+      [id],
+      [id + 1],
+    ],
+  );
+
+  @override
+  Future<DexEntry> getDexEntry(int id) async {
+    if (!savedDex.contains(id) && !online) {
+      throw const SocketException('offline');
+    }
+    savedDex.add(id);
+    return dexOf(id);
+  }
+
+  // 鳴き声のファイルは使わないので、ずっと読み込み中にしておく
+  @override
+  Future<File?> getCry(int id) => Completer<File?>().future;
+
+  @override
+  Future<void> downloadDex(int id) async {
+    await getDexEntry(id);
+  }
 
   /// downloadAll を途中で止めておきたいときに使う（complete するまで終わらない）
   Completer<void>? downloadGate;

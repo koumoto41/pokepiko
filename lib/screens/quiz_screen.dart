@@ -52,6 +52,7 @@ class QuizScreen extends ConsumerWidget {
               correctCount: next.correctCount,
               total: QuizController.questionCount,
               wrongPokemons: next.wrongPokemons,
+              newlyFound: next.newlyFound.length,
             ),
           ),
         );

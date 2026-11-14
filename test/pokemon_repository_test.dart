@@ -9,6 +9,8 @@ import 'package:pokepiko/data/poke_api_client.dart';
 import 'package:pokepiko/data/pokemon_repository.dart';
 import 'package:pokepiko/models/poke_type.dart';
 
+import 'api_fixtures.dart';
+
 /// 本物のファイル保存（一時フォルダ）＋ 偽のサーバーでテストする
 void main() {
   late Directory tempDir;
@@ -26,33 +28,16 @@ void main() {
     if (!online) throw const SocketException('offline');
     requestCount++;
     final path = req.url.path;
-    if (path.endsWith('.png')) return http.Response.bytes([1, 2, 3], 200);
+    // 画像と鳴き声は、中身を [1, 2, 3] にしておく
+    if (path.endsWith('.png') || path.endsWith('.ogg')) {
+      return http.Response.bytes([1, 2, 3], 200);
+    }
+    final id = int.parse(path.split('/').where((s) => s.isNotEmpty).last);
     final body = path.contains('pokemon-species')
-        ? {
-            'name': 'pikachu',
-            'names': [
-              {
-                'language': {'name': 'ja-hrkt'},
-                'name': 'ピカチュウ',
-              },
-            ],
-          }
-        : {
-            'sprites': {
-              'front_default': 'https://example.com/sprites/pokemon/25.png',
-              'other': {
-                'official-artwork': {
-                  'front_default': 'https://example.com/pokemon/other/official-artwork/25.png',
-                },
-              },
-            },
-            'types': [
-              {
-                'slot': 1,
-                'type': {'name': 'electric'},
-              },
-            ],
-          };
+        ? speciesJson(id)
+        : path.contains('evolution-chain')
+        ? pikachuChainJson()
+        : pokemonJson(id);
     return http.Response.bytes(utf8.encode(jsonEncode(body)), 200);
   });
 
@@ -141,5 +126,32 @@ void main() {
     expect(requestCount, count + 2); // species と pokemon の2回だけ
     await repo.downloadImages(pikachu);
     expect(requestCount, count + 2); // 画像は保存済みなので取らない
+  });
+
+  test('図鑑データと鳴き声も保存され、オフラインで読める', () async {
+    final first = newRepository();
+    await first.downloadDex(25);
+
+    online = false;
+    final second = newRepository();
+    final entry = await second.getDexEntry(25);
+    expect(entry.genusKana, 'ねずみポケモン');
+    expect(entry.evolution, [
+      [172],
+      [25],
+      [26],
+    ]);
+    final cry = await second.getCry(25);
+    expect(await cry!.readAsBytes(), [1, 2, 3]);
+  });
+
+  test('まとめてダウンロードすると、図鑑データも保存される', () async {
+    await newRepository().downloadAll(
+      [25],
+      onProgress: (_, _) {},
+      isCancelled: () => false,
+    );
+    online = false;
+    expect((await newRepository().getDexEntry(25)).heightDm, 4);
   });
 }

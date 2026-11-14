@@ -1,5 +1,6 @@
 import 'dart:io';
 
+import '../models/dex_entry.dart';
 import '../models/pokemon.dart';
 import 'cache_store.dart';
 import 'poke_api_client.dart';
@@ -16,6 +17,7 @@ class PokemonRepository {
   // ダウンロード中のもの。同じものを同時に頼まれたら、1回のダウンロードを使い回す
   final _pendingPokemon = <int, Future<Pokemon>>{};
   final _pendingImages = <String, Future<File>>{};
+  final _pendingDex = <int, Future<DexEntry>>{};
 
   /// ポケモン1匹分のデータ（保存済み → なければ API）
   Future<Pokemon> getPokemon(int id) {
@@ -33,7 +35,36 @@ class PokemonRepository {
     }();
   }
 
+  /// 図鑑のくわしいページ用のデータ（保存済み → なければ API）
+  Future<DexEntry> getDexEntry(int id) {
+    return _pendingDex[id] ??= () async {
+      try {
+        final cached = await _cache.readDexEntry(id);
+        if (cached != null) return cached;
+
+        final entry = await _api.fetchDexEntry(id);
+        await _cache.writeDexEntry(entry);
+        return entry;
+      } finally {
+        _pendingDex.remove(id);
+      }
+    }();
+  }
+
+  /// 鳴き声の音声ファイル（無いポケモンは null）。画像と同じしくみで保存する
+  Future<File?> getCry(int id) async {
+    final url = (await getDexEntry(id)).cryUrl;
+    return url == null ? null : getImage(url);
+  }
+
+  /// 図鑑で見るためのデータ（くわしいページ・鳴き声）を、まとめて保存しておく
+  Future<void> downloadDex(int id) async {
+    await getDexEntry(id);
+    await getCry(id);
+  }
+
   /// 画像のファイル（保存済み → なければダウンロードして保存）
+  /// 画像以外のファイル（鳴き声）にも使える
   Future<File> getImage(String url) {
     return _pendingImages[url] ??= () async {
       try {
@@ -81,6 +112,7 @@ class PokemonRepository {
         final id = ids[next++];
         try {
           await downloadImages(await getPokemon(id));
+          await downloadDex(id); // 図鑑もオフラインで見られるように
         } catch (_) {
           failed++;
         }

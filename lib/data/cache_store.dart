@@ -3,13 +3,15 @@ import 'dart:io';
 
 import 'package:path_provider/path_provider.dart';
 
+import '../models/dex_entry.dart';
 import '../models/pokemon.dart';
 
 /// 取ってきたポケモンのデータと画像を、端末のファイルに保存・読み込みする
 ///
 /// 保存場所: アプリ専用の Application Support フォルダの中
 ///   cache/pokemon/25.json        … 名前と画像URL
-///   cache/images/official-artwork_25.png … 画像そのもの
+///   cache/images/official-artwork_25.png … 画像そのもの（鳴き声の音声ファイルもここ）
+///   cache/dex/25.json            … 図鑑のくわしいページ用のデータ
 /// （iOS の「Caches」フォルダと違い、容量が減っても OS に勝手に消されない）
 class CacheStore {
   /// 保存先フォルダの決め方（テストでは一時フォルダに差し替える）
@@ -26,6 +28,7 @@ class CacheStore {
     final root = Directory('${(await _baseDir()).path}/cache');
     await Directory('${root.path}/pokemon').create(recursive: true);
     await Directory('${root.path}/images').create(recursive: true);
+    await Directory('${root.path}/dex').create(recursive: true);
     return root;
   }();
 
@@ -58,6 +61,31 @@ class CacheStore {
       utf8.encode(jsonEncode(pokemon.toJson())),
     );
     (await cachedPokemonIds()).add(pokemon.id);
+  }
+
+  Future<File> _dexFile(int id) async =>
+      File('${(await _rootDir()).path}/dex/$id.json');
+
+  /// 保存済みの図鑑データを読む（無ければ null）
+  Future<DexEntry?> readDexEntry(int id) async {
+    final file = await _dexFile(id);
+    if (!await file.exists()) return null;
+    try {
+      return DexEntry.fromJson(
+        jsonDecode(await file.readAsString()) as Map<String, dynamic>,
+      );
+    } on FormatException {
+      return null;
+    } on TypeError {
+      return null; // 形が変わった古いデータも、取り直す
+    }
+  }
+
+  Future<void> writeDexEntry(DexEntry entry) async {
+    await _writeAtomically(
+      await _dexFile(entry.id),
+      utf8.encode(jsonEncode(entry.toJson())),
+    );
   }
 
   /// 保存済みポケモンの図鑑番号の一覧

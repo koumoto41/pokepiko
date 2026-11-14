@@ -1,10 +1,13 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:material_ui/material_ui.dart';
 
+import '../data/cry_player.dart';
 import '../data/sound_service.dart';
 import '../screens/route_names.dart';
 
 final soundServiceProvider = Provider<SoundService>((ref) => SoundService());
+
+final cryPlayerProvider = Provider<CryPlayer>((ref) => CryPlayer());
 
 /// 画面が切りかわるたびに、いちばん上の画面に合った BGM にする
 /// （各画面に書くと「戻る」で前の画面に戻ったときに鳴らし忘れるので、ここでまとめて見る）
@@ -16,6 +19,8 @@ class BgmNavigatorObserver extends NavigatorObserver {
     RouteNames.title: Bgm.title,
     RouteNames.settings: Bgm.title,
     RouteNames.quiz: Bgm.quiz,
+    RouteNames.zukan: Bgm.title, // 図鑑はタイトルと同じゆったりした曲
+    RouteNames.zukanDetail: Bgm.title,
     // 結果画面は BGM なし
   };
 

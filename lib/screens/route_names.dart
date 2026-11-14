@@ -4,4 +4,6 @@ abstract final class RouteNames {
   static const settings = 'settings';
   static const quiz = 'quiz';
   static const result = 'result';
+  static const zukan = 'zukan';
+  static const zukanDetail = 'zukanDetail';
 }

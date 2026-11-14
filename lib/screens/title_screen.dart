@@ -6,6 +6,7 @@ import '../models/quiz_settings.dart';
 import '../providers/high_score_provider.dart';
 import 'route_names.dart';
 import 'settings_screen.dart';
+import 'zukan_screen.dart';
 
 /// タイトル画面
 class TitleScreen extends StatelessWidget {
@@ -13,6 +14,8 @@ class TitleScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // iPhone SE など縦が短い画面では、ハイスコアの表と2つのボタンが入るよう全体を小さく
+    final compact = context.isCompactHeight;
     return Scaffold(
       // 上から下へ、明るい色のグラデーション
       body: Container(
@@ -25,21 +28,23 @@ class TitleScreen extends StatelessWidget {
         ),
         child: SafeArea(
           child: Padding(
-            padding: const EdgeInsets.all(24),
+            padding: EdgeInsets.symmetric(
+              horizontal: 24,
+              vertical: compact ? 12 : 24,
+            ),
             child: Column(
               children: [
                 const Spacer(),
                 Icon(
                   Icons.catching_pokemon,
-                  // iPhone SE ではハイスコアの表が入るよう、少し小さく
-                  size: context.isCompactHeight ? 112 : 160,
+                  size: compact ? 72 : 160,
                   color: Colors.red,
                 ),
-                const SizedBox(height: 16),
-                const Text(
+                SizedBox(height: compact ? 4 : 16),
+                Text(
                   'ポケピコ',
                   style: TextStyle(
-                    fontSize: 64,
+                    fontSize: compact ? 52 : 64,
                     fontWeight: FontWeight.bold,
                     color: Colors.deepOrange,
                   ),
@@ -48,12 +53,12 @@ class TitleScreen extends StatelessWidget {
                   'ポケモン クイズ',
                   style: TextStyle(fontSize: 24, color: Colors.brown),
                 ),
-                const SizedBox(height: 24),
+                SizedBox(height: compact ? 12 : 24),
                 const _HighScores(),
                 const Spacer(),
                 SizedBox(
                   width: double.infinity,
-                  height: 80,
+                  height: compact ? 68 : 80,
                   child: FilledButton(
                     style: FilledButton.styleFrom(
                       backgroundColor: Colors.red,
@@ -72,7 +77,20 @@ class TitleScreen extends StatelessWidget {
                     child: const Text('はじめる', style: TextStyle(fontSize: 36)),
                   ),
                 ),
-                const SizedBox(height: 32),
+                const SizedBox(height: 12),
+                SizedBox(
+                  width: double.infinity,
+                  height: 64,
+                  child: OutlinedButton.icon(
+                    style: OutlinedButton.styleFrom(
+                      backgroundColor: Colors.white.withValues(alpha: 0.7),
+                    ),
+                    onPressed: () => Navigator.of(context).push(zukanRoute()),
+                    icon: const Icon(Icons.menu_book, size: 32),
+                    label: const Text('ずかん'),
+                  ),
+                ),
+                SizedBox(height: context.isCompactHeight ? 8 : 32),
               ],
             ),
           ),

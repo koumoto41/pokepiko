@@ -7,6 +7,7 @@ import '../models/poke_type.dart';
 import '../models/pokemon.dart';
 import '../models/question.dart';
 import '../models/quiz_settings.dart';
+import 'collection_provider.dart';
 import 'data_providers.dart';
 import 'settings_provider.dart';
 
@@ -28,6 +29,7 @@ class QuizState {
   final int correctCount; // 正解数
   final List<Pokemon> wrongPokemons; // 間違えた問題の主役のポケモン
   final List<bool> results; // 1問ごとの結果（true = 正解）。画面上の丸の色に使う
+  final List<Pokemon> newlyFound; // このゲームで、図鑑にはじめて入ったポケモン
   final String? errorMessage;
 
   const QuizState({
@@ -39,6 +41,7 @@ class QuizState {
     this.correctCount = 0,
     this.wrongPokemons = const [],
     this.results = const [],
+    this.newlyFound = const [],
     this.errorMessage,
   });
 
@@ -54,6 +57,7 @@ class QuizState {
     int? correctCount,
     List<Pokemon>? wrongPokemons,
     List<bool>? results,
+    List<Pokemon>? newlyFound,
     String? errorMessage,
   }) {
     return QuizState(
@@ -67,6 +71,7 @@ class QuizState {
       correctCount: correctCount ?? this.correctCount,
       wrongPokemons: wrongPokemons ?? this.wrongPokemons,
       results: results ?? this.results,
+      newlyFound: newlyFound ?? this.newlyFound,
       errorMessage: errorMessage ?? this.errorMessage,
     );
   }
@@ -138,6 +143,8 @@ class QuizController extends Notifier<QuizState> {
       results: [...state.results, isCorrect],
     );
 
+    if (isCorrect) _collect(question.pokemon);
+
     // 1秒後に次の問題へ（最後の問題なら結果へ）
     _nextTimer = Timer(_nextDelay, () {
       if (state.questionNumber >= questionCount) {
@@ -146,6 +153,23 @@ class QuizController extends Notifier<QuizState> {
         _showNextQuestion(_gameId);
       }
     });
+  }
+
+  /// 正解したポケモンを図鑑に記録する（結果を待たずにクイズは進める）
+  Future<void> _collect(Pokemon pokemon) async {
+    final gameId = _gameId;
+    // await のあいだに画面が閉じられると ref が使えなくなるので、先に取り出しておく
+    final collection = ref.read(collectionProvider.notifier);
+    final repo = ref.read(pokemonRepositoryProvider);
+
+    // 図鑑のくわしいページと鳴き声も、オフラインで見られるように保存しておく
+    // （失敗しても、図鑑を開いたときにもう一度取りにいくので、ここでは気にしない）
+    repo.downloadDex(pokemon.id).ignore();
+
+    final isNew = await collection.add(pokemon.id);
+    if (isNew && _isCurrentGame(gameId)) {
+      state = state.copyWith(newlyFound: [...state.newlyFound, pokemon]);
+    }
   }
 
   /// エラーになったとき、最初からやり直す
