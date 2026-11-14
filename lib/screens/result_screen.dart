@@ -8,10 +8,12 @@ import '../providers/high_score_provider.dart';
 import 'quiz_screen.dart';
 import 'route_names.dart';
 import 'widgets/cached_image.dart';
+import 'widgets/type_badge.dart';
 
 /// 結果画面：星・正解数と、間違えたポケモンの一覧
 /// 表示したときに1回だけハイスコアを記録する
 class ResultScreen extends ConsumerStatefulWidget {
+  final QuizVariant variant; // 遊んだクイズの種類
   final QuizMode mode;
   final int correctCount;
   final int total;
@@ -19,6 +21,7 @@ class ResultScreen extends ConsumerStatefulWidget {
 
   const ResultScreen({
     super.key,
+    required this.variant,
     required this.mode,
     required this.correctCount,
     required this.total,
@@ -59,13 +62,15 @@ class _ResultScreenState extends ConsumerState<ResultScreen> {
     // build は何度も呼ばれるので、記録は initState で1回だけ
     _isNewRecord = ref
         .read(highScoresProvider.notifier)
-        .submit(widget.mode, widget.correctCount);
+        .submit(widget.variant, widget.mode, widget.correctCount);
   }
 
   @override
   Widget build(BuildContext context) {
     final wrongPokemons = widget.wrongPokemons;
-    final best = ref.watch(highScoresProvider).value?[widget.mode];
+    final best = ref
+        .watch(highScoresProvider)
+        .value?[(widget.variant, widget.mode)];
     final stars = ResultScreen.starsFor(widget.correctCount, widget.total);
     final compact = context.isCompactHeight; // iPhone SE など縦が短い画面
 
@@ -120,7 +125,8 @@ class _ResultScreenState extends ConsumerState<ResultScreen> {
                       : Text(
                           best == null
                               ? ''
-                              : '${widget.mode.label}の ハイスコア：$best もん',
+                              : '${widget.variant.label}・${widget.mode.label}の'
+                                    ' ハイスコア：$best もん',
                           style: const TextStyle(fontSize: 18),
                         ),
                 ),
@@ -154,6 +160,9 @@ class _ResultScreenState extends ConsumerState<ResultScreen> {
                                 itemBuilder: (_, i) => AspectRatio(
                                   aspectRatio: 0.8,
                                   child: _WrongPokemonCard(
+                                    // タイプクイズのときは、タイプもいっしょに覚えられるように出す
+                                    showTypes:
+                                        widget.variant != QuizVariant.name,
                                     pokemon: wrongPokemons[i],
                                   ),
                                 ),
@@ -252,7 +261,8 @@ class _Stars extends StatelessWidget {
 /// 間違えたポケモン1匹のカード
 class _WrongPokemonCard extends StatelessWidget {
   final Pokemon pokemon;
-  const _WrongPokemonCard({required this.pokemon});
+  final bool showTypes;
+  const _WrongPokemonCard({required this.pokemon, this.showTypes = false});
 
   @override
   Widget build(BuildContext context) {
@@ -278,6 +288,13 @@ class _WrongPokemonCard extends StatelessWidget {
                 ),
               ),
             ),
+            if (showTypes) ...[
+              const SizedBox(height: 2),
+              FittedBox(
+                fit: BoxFit.scaleDown,
+                child: TypeBadges(types: pokemon.types, fontSize: 13),
+              ),
+            ],
           ],
         ),
       ),

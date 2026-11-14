@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:io';
 
 import 'package:pokepiko/data/pokemon_repository.dart';
+import 'package:pokepiko/models/poke_type.dart';
 import 'package:pokepiko/models/pokemon.dart';
 
 /// テスト用の偽の窓口（通信もファイルも使わず、メモリの中だけで動く）
@@ -13,10 +14,17 @@ class FakePokemonRepository implements PokemonRepository {
 
   FakePokemonRepository({this.online = true});
 
+  /// 番号から決まったタイプを作る（3の倍数は2タイプ持ち）
+  static List<PokeType> typesOf(int id) => [
+    PokeType.values[id % PokeType.values.length],
+    if (id % 3 == 0) PokeType.values[(id + 5) % PokeType.values.length],
+  ];
+
   Pokemon _make(int id) => Pokemon(
     id: id,
     name: 'P$id',
     artworkUrl: 'https://example.com/art/$id.png',
+    types: typesOf(id),
   );
 
   @override

@@ -4,6 +4,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
 import 'package:pokepiko/data/poke_api_client.dart';
+import 'package:pokepiko/models/poke_type.dart';
 
 /// 指定した言語コードで species の名前を返す、偽のサーバー
 PokeApiClient clientWithNames(List<(String, String)> names) {
@@ -21,6 +22,17 @@ PokeApiClient clientWithNames(List<(String, String)> names) {
           }
         : {
             'sprites': {'front_default': null, 'other': {}},
+            // 本物の API と同じ形。stellar のような知らないタイプは無視されるはず
+            'types': [
+              {
+                'slot': 1,
+                'type': {'name': 'electric'},
+              },
+              {
+                'slot': 2,
+                'type': {'name': 'stellar'},
+              },
+            ],
           };
     // 本物と同じく UTF-8 のバイト列で返す
     return http.Response.bytes(utf8.encode(jsonEncode(body)), 200);
@@ -42,5 +54,10 @@ void main() {
   test('ja-hrkt が無ければ ja を使う', () async {
     final api = clientWithNames([('en', 'Pikachu'), ('ja', 'ピカチュウ')]);
     expect((await api.fetchPokemon(25)).name, 'ピカチュウ');
+  });
+
+  test('タイプを読み取る（知らないタイプは入れない）', () async {
+    final api = clientWithNames([('ja-hrkt', 'ピカチュウ')]);
+    expect((await api.fetchPokemon(25)).types, [PokeType.electric]);
   });
 }

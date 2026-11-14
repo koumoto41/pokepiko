@@ -21,6 +21,14 @@ class SettingsScreen extends ConsumerWidget {
     QuizMode.pixel: Icons.grid_on,
     QuizMode.silhouette: Icons.help,
   };
+  static const _kindIcons = {
+    QuizKind.name: Icons.badge,
+    QuizKind.type: Icons.local_fire_department,
+  };
+  static const _kindColors = {
+    QuizKind.name: Colors.teal,
+    QuizKind.type: Colors.deepPurple,
+  };
   static const _modeColors = {
     QuizMode.illustration: Colors.orange,
     QuizMode.pixel: Colors.green,
@@ -68,7 +76,7 @@ class SettingsScreen extends ConsumerWidget {
                       mainAxisSpacing: 8,
                       crossAxisSpacing: 8,
                       // 横長のタイル（左に絵、右に数字）。縦の幅を節約して、SE でもモードまで見えるように
-                      childAspectRatio: 1.45,
+                      childAspectRatio: 1.6,
                       children: [
                         for (final g in Generation.all)
                           _GenerationTile(
@@ -87,30 +95,35 @@ class SettingsScreen extends ConsumerWidget {
                     const SizedBox(height: 16),
                     const _SectionTitle('モード'),
                     const SizedBox(height: 8),
-                    Row(
-                      children: [
-                        for (final mode in QuizMode.values) ...[
-                          Expanded(
-                            child: _SelectTile(
-                              selected: settings.mode == mode,
-                              color: _modeColors[mode]!,
-                              onTap: () => controller.setMode(mode),
-                              child: Column(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  Icon(_modeIcons[mode], size: 40),
-                                  Text(
-                                    mode.label,
-                                    style: const TextStyle(fontSize: 18),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ),
-                          if (mode != QuizMode.values.last)
-                            const SizedBox(width: 8),
-                        ],
-                      ],
+                    // クイズの種類
+                    _OptionRow<QuizKind>(
+                      values: QuizKind.values,
+                      selected: settings.kind,
+                      label: (k) => '${k.label}クイズ',
+                      icon: (k) => _kindIcons[k]!,
+                      color: (k) => _kindColors[k]!,
+                      onSelect: controller.setKind,
+                    ),
+                    // タイプクイズのときだけ、問題の向きを選ぶ
+                    if (settings.kind == QuizKind.type) ...[
+                      const SizedBox(height: 8),
+                      _OptionRow<TypeDirection>(
+                        values: TypeDirection.values,
+                        selected: settings.typeDirection,
+                        label: (d) => d.label,
+                        color: (_) => Colors.deepPurple,
+                        onSelect: controller.setTypeDirection,
+                      ),
+                    ],
+                    const SizedBox(height: 8),
+                    // 画像の見せかた
+                    _OptionRow<QuizMode>(
+                      values: QuizMode.values,
+                      selected: settings.mode,
+                      label: (m) => m.label,
+                      icon: (m) => _modeIcons[m]!,
+                      color: (m) => _modeColors[m]!,
+                      onSelect: controller.setMode,
                     ),
                     // ダウンロードは保護者向けなので、いちばん下に置く
                     const SizedBox(height: 24),
@@ -471,6 +484,65 @@ class _DownloadDialogState extends ConsumerState<_DownloadDialog> {
           },
           child: Text(finished ? 'とじる' : 'やめる'),
         ),
+      ],
+    );
+  }
+}
+
+/// 1つだけ選べるタイルを横に並べた段（モードの選択で使う）
+/// `T`：選ぶものの型（QuizKind など）。同じ部品をいろいろな選択に使い回せる
+class _OptionRow<T> extends StatelessWidget {
+  final List<T> values;
+  final T selected;
+  final String Function(T) label;
+  final IconData Function(T)? icon;
+  final Color Function(T) color;
+  final void Function(T) onSelect;
+
+  const _OptionRow({
+    required this.values,
+    required this.selected,
+    required this.label,
+    required this.color,
+    required this.onSelect,
+    this.icon,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        for (final (i, v) in values.indexed) ...[
+          if (i > 0) const SizedBox(width: 8),
+          Expanded(
+            child: _SelectTile(
+              selected: v == selected,
+              color: color(v),
+              onTap: () => onSelect(v),
+              padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 6),
+              // アイコンと文字を横に並べて、低いタイルにする（SE でも場所をとらない）
+              child: FittedBox(
+                fit: BoxFit.scaleDown,
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    if (icon != null) ...[
+                      Icon(icon!(v), size: 26),
+                      const SizedBox(width: 4),
+                    ],
+                    Text(
+                      label(v),
+                      style: const TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ],
       ],
     );
   }

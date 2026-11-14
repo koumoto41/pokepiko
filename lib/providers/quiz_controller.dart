@@ -3,8 +3,10 @@ import 'dart:math';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../models/poke_type.dart';
 import '../models/pokemon.dart';
 import '../models/question.dart';
+import '../models/quiz_settings.dart';
 import 'data_providers.dart';
 import 'settings_provider.dart';
 
@@ -21,10 +23,10 @@ class QuizState {
   final QuizStatus status;
   final int questionNumber; // 何問目か（1〜10）
   final Question? current; // 表示中の問題
-  final Pokemon? selected; // タップした選択肢（時間切れなら null のまま）
+  final int? selectedIndex; // タップした選択肢の位置（時間切れなら null のまま）
   final int remainingSeconds; // 残り時間（秒）
   final int correctCount; // 正解数
-  final List<Pokemon> wrongPokemons; // 間違えた問題の正解ポケモン
+  final List<Pokemon> wrongPokemons; // 間違えた問題の主役のポケモン
   final List<bool> results; // 1問ごとの結果（true = 正解）。画面上の丸の色に使う
   final String? errorMessage;
 
@@ -32,7 +34,7 @@ class QuizState {
     this.status = QuizStatus.loading,
     this.questionNumber = 0,
     this.current,
-    this.selected,
+    this.selectedIndex,
     this.remainingSeconds = QuizController.timeLimitSeconds,
     this.correctCount = 0,
     this.wrongPokemons = const [],
@@ -41,12 +43,12 @@ class QuizState {
   });
 
   /// 一部だけ変えた新しい状態を作る
-  /// （selected は null に戻したいことがあるので clearSelected で指定）
+  /// （selectedIndex は null に戻したいことがあるので clearSelected で指定）
   QuizState copyWith({
     QuizStatus? status,
     int? questionNumber,
     Question? current,
-    Pokemon? selected,
+    int? selectedIndex,
     bool clearSelected = false,
     int? remainingSeconds,
     int? correctCount,
@@ -58,7 +60,9 @@ class QuizState {
       status: status ?? this.status,
       questionNumber: questionNumber ?? this.questionNumber,
       current: current ?? this.current,
-      selected: clearSelected ? null : (selected ?? this.selected),
+      selectedIndex: clearSelected
+          ? null
+          : (selectedIndex ?? this.selectedIndex),
       remainingSeconds: remainingSeconds ?? this.remainingSeconds,
       correctCount: correctCount ?? this.correctCount,
       wrongPokemons: wrongPokemons ?? this.wrongPokemons,
@@ -66,6 +70,10 @@ class QuizState {
       errorMessage: errorMessage ?? this.errorMessage,
     );
   }
+
+  /// 答えた選択肢が正解か（時間切れは false）
+  bool get isCorrect =>
+      selectedIndex != null && selectedIndex == current?.correctIndex;
 }
 
 /// 出題・回答判定・次の問題への切り替えを担当する
@@ -73,6 +81,7 @@ class QuizController extends Notifier<QuizState> {
   static const questionCount = 10; // 1ゲームの問題数
   static const timeLimitSeconds = 30; // 1問ごとの制限時間
   static const _nextDelay = Duration(seconds: 1); // 回答後、次の問題までの待ち時間
+  static const _maxOnlineTries = 40; // 条件に合うポケモンを探すとき、ネットから取る数の上限
 
   final _random = Random();
   final _usedAnswerIds = <int>{}; // 同じポケモンを2回正解にしないため
@@ -80,6 +89,7 @@ class QuizController extends Notifier<QuizState> {
   Timer? _nextTimer; // 回答後、次の問題へ進むためのタイマー
   Timer? _countdownTimer; // 残り時間を1秒ずつ減らすタイマー
   List<int> _candidateIds = []; // 出題の候補（選んだ世代の図鑑番号）
+  QuizVariant _variant = QuizVariant.name; // 遊んでいるクイズの種類
   int _gameId = 0; // やり直すたびに増える番号。古いゲームの処理を無視するために使う
   bool _offline = false; // 一度ネットにつながらなかったら、そのゲーム中は保存済みだけで出す
 
@@ -92,7 +102,9 @@ class QuizController extends Notifier<QuizState> {
     _offline = false;
 
     // ゲーム中に設定は変わらないので、watch ではなく read で1回だけ読む
-    _candidateIds = ref.read(settingsProvider).candidateIds;
+    final settings = ref.read(settingsProvider);
+    _candidateIds = settings.candidateIds;
+    _variant = settings.variant;
     // Provider が捨てられる・作り直されるときにタイマーも止める
     ref.onDispose(() {
       _nextTimer?.cancel();
@@ -106,23 +118,23 @@ class QuizController extends Notifier<QuizState> {
   /// この処理が「いまのゲーム」のものか（画面が閉じられた・やり直した なら false）
   bool _isCurrentGame(int gameId) => ref.mounted && gameId == _gameId;
 
-  /// 選択肢をタップしたとき
-  void answer(Pokemon choice) => _finishQuestion(choice);
+  /// 選択肢をタップしたとき（index: 何番目の選択肢か）
+  void answer(int index) => _finishQuestion(index);
 
-  /// 1問を終わらせる（choice が null なら時間切れ）
-  void _finishQuestion(Pokemon? choice) {
+  /// 1問を終わらせる（index が null なら時間切れ）
+  void _finishQuestion(int? index) {
     final question = state.current;
     if (state.status != QuizStatus.answering || question == null) return;
     _countdownTimer?.cancel();
 
-    final isCorrect = choice?.id == question.answer.id;
+    final isCorrect = index == question.correctIndex;
     state = state.copyWith(
       status: QuizStatus.answered,
-      selected: choice,
+      selectedIndex: index,
       correctCount: isCorrect ? state.correctCount + 1 : null,
       wrongPokemons: isCorrect
           ? null
-          : [...state.wrongPokemons, question.answer],
+          : [...state.wrongPokemons, question.pokemon],
       results: [...state.results, isCorrect],
     );
 
@@ -177,68 +189,163 @@ class QuizController extends Notifier<QuizState> {
     });
   }
 
-  /// 問題を1つ作る（正解1匹＋はずれ3匹、すべて別のポケモン）
+  /// 問題を1つ作る
   /// まずは普通に作り（保存済みのものは保存から読む）、
   /// ネットにつながらず失敗したら、保存済みのポケモンだけで作り直す
   Future<Question> _createQuestion() async {
     if (!_offline) {
       try {
-        return await _createQuestionFrom(
-          answerPool: _candidateIds,
-          choicePool: _candidateIds,
-        );
+        return await _createQuestionFrom(_candidateIds, offline: false);
       } catch (_) {
         _offline = true;
       }
     }
-    return _createOfflineQuestion();
+    final cached = await ref.read(pokemonRepositoryProvider).cachedIds();
+    final pool = _candidateIds.where(cached.contains).toList();
+    if (pool.length < 4) throw const NotEnoughOfflineDataException();
+    return _createQuestionFrom(pool, offline: true);
   }
 
-  /// 保存済みのポケモンだけで問題を作る
-  Future<Question> _createOfflineQuestion() async {
-    final repo = ref.read(pokemonRepositoryProvider);
-    final cached = await repo.cachedIds();
-    // はずれ用：名前が保存されていればよい
-    final choicePool = _candidateIds.where(cached.contains).toList();
-    if (choicePool.length < 4) throw const NotEnoughOfflineDataException();
-
-    // 正解用：画像まで保存されているポケモンを、ランダムな順に探す
-    final answerPool = [...choicePool]..shuffle(_random);
-    for (final id in answerPool) {
-      if (_usedAnswerIds.contains(id)) continue;
-      if (!await repo.hasImages(await repo.getPokemon(id))) continue;
-      return _createQuestionFrom(answerPool: [id], choicePool: choicePool);
-    }
-    throw const NotEnoughOfflineDataException();
-  }
-
-  /// answerPool から正解を、choicePool からはずれを選んで問題を作る
-  Future<Question> _createQuestionFrom({
-    required List<int> answerPool,
-    required List<int> choicePool,
+  Future<Question> _createQuestionFrom(
+    List<int> pool, {
+    required bool offline,
   }) async {
-    int pick(List<int> pool) => pool[_random.nextInt(pool.length)];
+    final question = await switch (_variant) {
+      QuizVariant.name => _createNameQuestion(pool, offline),
+      QuizVariant.pokemonToType => _createPokemonToTypeQuestion(pool, offline),
+      QuizVariant.typeToPokemon => _createTypeToPokemonQuestion(pool, offline),
+    };
+    _usedAnswerIds.add(question.pokemon.id);
+    return question;
+  }
 
-    int answerId;
-    do {
-      answerId = pick(answerPool);
-    } while (_usedAnswerIds.contains(answerId) && answerPool.length > 1);
-
-    // Set は同じ値を入れても増えないので、重複しない4匹がそろう
-    // はずれも正解と同じ世代の範囲から選ぶ
-    final ids = <int>{answerId};
-    while (ids.length < 4) {
-      ids.add(pick(choicePool));
+  /// なまえクイズ：ポケモンの絵を見せて、4つの名前から選ぶ
+  Future<Question> _createNameQuestion(List<int> pool, bool offline) async {
+    final answer = await _pickPokemon(
+      pool,
+      offline: offline,
+      needImages: true,
+      exclude: _usedAnswerIds,
+    );
+    // はずれの3匹は名前だけ使うので、画像はいらない
+    final others = <Pokemon>[];
+    for (var i = 0; i < 3; i++) {
+      others.add(
+        await _pickPokemon(
+          pool,
+          offline: offline,
+          needImages: false,
+          exclude: {answer.id, for (final p in others) p.id},
+        ),
+      );
     }
+    final choices = [answer, ...others]..shuffle(_random);
+    return Question(
+      variant: QuizVariant.name,
+      pokemon: answer,
+      pokemonChoices: choices,
+      correctIndex: choices.indexOf(answer),
+    );
+  }
 
+  /// ポケモン→タイプ：ポケモンの絵を見せて、4つのタイプから選ぶ
+  /// 2つのタイプを持つポケモンは、どちらか1つだけを選択肢に入れる（両方入れると正解が2つになる）
+  Future<Question> _createPokemonToTypeQuestion(
+    List<int> pool,
+    bool offline,
+  ) async {
+    final pokemon = await _pickPokemon(
+      pool,
+      offline: offline,
+      needImages: true,
+      exclude: _usedAnswerIds,
+      where: (p) => p.types.isNotEmpty,
+    );
+    final correct = pokemon.types[_random.nextInt(pokemon.types.length)];
+    // はずれは、そのポケモンが持っていないタイプから3つ
+    final wrong = [
+      for (final t in PokeType.values)
+        if (!pokemon.types.contains(t)) t,
+    ]..shuffle(_random);
+    final choices = [correct, ...wrong.take(3)]..shuffle(_random);
+    return Question(
+      variant: QuizVariant.pokemonToType,
+      pokemon: pokemon,
+      typeChoices: choices,
+      correctIndex: choices.indexOf(correct),
+    );
+  }
+
+  /// タイプ→ポケモン：タイプを見せて、4匹のポケモン（絵）から選ぶ
+  /// 正解のポケモンのタイプの1つを聞き、はずれはそのタイプを持たない3匹にする
+  Future<Question> _createTypeToPokemonQuestion(
+    List<int> pool,
+    bool offline,
+  ) async {
+    final answer = await _pickPokemon(
+      pool,
+      offline: offline,
+      needImages: true,
+      exclude: _usedAnswerIds,
+      where: (p) => p.types.isNotEmpty,
+    );
+    final asked = answer.types[_random.nextInt(answer.types.length)];
+    // 選択肢はすべて絵で見せるので、はずれも画像が必要
+    final others = <Pokemon>[];
+    for (var i = 0; i < 3; i++) {
+      others.add(
+        await _pickPokemon(
+          pool,
+          offline: offline,
+          needImages: true,
+          exclude: {answer.id, for (final p in others) p.id},
+          where: (p) => p.types.isNotEmpty && !p.types.contains(asked),
+        ),
+      );
+    }
+    final choices = [answer, ...others]..shuffle(_random);
+    return Question(
+      variant: QuizVariant.typeToPokemon,
+      pokemon: answer,
+      askedType: asked,
+      pokemonChoices: choices,
+      correctIndex: choices.indexOf(answer),
+    );
+  }
+
+  /// pool からランダムに、条件に合うポケモンを1匹選ぶ
+  /// - exclude：選ばない図鑑番号
+  /// - where：ポケモンの条件（タイプなど）
+  /// - needImages：画像が必要か。オンラインなら保存し、オフラインなら保存済みのものだけ選ぶ
+  Future<Pokemon> _pickPokemon(
+    List<int> pool, {
+    required bool offline,
+    required bool needImages,
+    Set<int> exclude = const {},
+    bool Function(Pokemon)? where,
+  }) async {
     final repo = ref.read(pokemonRepositoryProvider);
-    final pokemons = await Future.wait(ids.map(repo.getPokemon));
-    final answer = pokemons.first; // Set は入れた順を保つので、先頭が正解
-    // 問題を出す前に正解の画像を保存しておく（次からオフラインでも出せる）
-    await repo.downloadImages(answer);
+    var tries = 0;
+    for (final id in [...pool]..shuffle(_random)) {
+      if (exclude.contains(id)) continue;
+      // ネットから取るのは時間がかかるので、探す数に上限をつける
+      if (!offline && ++tries > _maxOnlineTries) break;
 
-    _usedAnswerIds.add(answerId);
-    return Question(answer: answer, choices: [...pokemons]..shuffle(_random));
+      final pokemon = await repo.getPokemon(id);
+      if (where != null && !where(pokemon)) continue;
+      if (needImages) {
+        if (offline) {
+          if (!await repo.hasImages(pokemon)) continue;
+        } else {
+          // 問題を出す前に画像を保存しておく（次からオフラインでも出せる）
+          await repo.downloadImages(pokemon);
+        }
+      }
+      return pokemon;
+    }
+    throw offline
+        ? const NotEnoughOfflineDataException()
+        : StateError('じょうけんに あう ポケモンが みつかりません');
   }
 }
 

@@ -1,12 +1,13 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:material_ui/material_ui.dart';
 
+import '../app_theme.dart';
 import '../models/quiz_settings.dart';
 import '../providers/high_score_provider.dart';
 import 'route_names.dart';
 import 'settings_screen.dart';
 
-/// タイトル画面（ステップ8でBGMを足す）
+/// タイトル画面
 class TitleScreen extends StatelessWidget {
   const TitleScreen({super.key});
 
@@ -28,9 +29,10 @@ class TitleScreen extends StatelessWidget {
             child: Column(
               children: [
                 const Spacer(),
-                const Icon(
+                Icon(
                   Icons.catching_pokemon,
-                  size: 160,
+                  // iPhone SE ではハイスコアの表が入るよう、少し小さく
+                  size: context.isCompactHeight ? 112 : 160,
                   color: Colors.red,
                 ),
                 const SizedBox(height: 16),
@@ -43,7 +45,7 @@ class TitleScreen extends StatelessWidget {
                   ),
                 ),
                 const Text(
-                  'ポケモン なまえ クイズ',
+                  'ポケモン クイズ',
                   style: TextStyle(fontSize: 24, color: Colors.brown),
                 ),
                 const SizedBox(height: 24),
@@ -110,23 +112,38 @@ class _HighScores extends ConsumerWidget {
             ],
           ),
           const SizedBox(height: 4),
-          Row(
+          // 行：クイズの種類、列：画像の見せかた
+          Table(
+            defaultVerticalAlignment: TableCellVerticalAlignment.middle,
+            columnWidths: const {0: FlexColumnWidth(1.6)},
             children: [
-              for (final mode in QuizMode.values)
-                Expanded(
-                  child: Column(
-                    children: [
-                      Text(mode.label, style: const TextStyle(fontSize: 16)),
-                      Text(
-                        '${scores[mode] ?? 0}',
-                        style: const TextStyle(
-                          fontSize: 32,
+              TableRow(
+                children: [
+                  const SizedBox(),
+                  for (final mode in QuizMode.values)
+                    _cell(mode.label, const TextStyle(fontSize: 13)),
+                ],
+              ),
+              for (final variant in QuizVariant.values)
+                TableRow(
+                  children: [
+                    _cell(
+                      variant.label,
+                      const TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    for (final mode in QuizMode.values)
+                      _cell(
+                        '${scores[(variant, mode)] ?? 0}',
+                        const TextStyle(
+                          fontSize: 22,
                           fontWeight: FontWeight.bold,
                           color: Colors.deepOrange,
                         ),
                       ),
-                    ],
-                  ),
+                  ],
                 ),
             ],
           ),
@@ -134,4 +151,13 @@ class _HighScores extends ConsumerWidget {
       ),
     );
   }
+
+  /// 表の1マス（入りきらなければ文字を縮める）
+  Widget _cell(String text, TextStyle style) => Padding(
+    padding: const EdgeInsets.symmetric(vertical: 2, horizontal: 2),
+    child: FittedBox(
+      fit: BoxFit.scaleDown,
+      child: Text(text, style: style),
+    ),
+  );
 }

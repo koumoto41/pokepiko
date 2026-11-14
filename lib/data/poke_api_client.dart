@@ -2,6 +2,7 @@ import 'dart:convert';
 
 import 'package:http/http.dart' as http;
 
+import '../models/poke_type.dart';
 import '../models/pokemon.dart';
 
 /// PokéAPI と通信するクラス
@@ -36,6 +37,12 @@ class PokeApiClient {
       artworkUrl:
           sprites['other']?['official-artwork']?['front_default'] as String?,
       spriteUrl: sprites['front_default'] as String?,
+      // types: [{slot: 1, type: {name: fire}}, ...] から、知っているタイプだけ取り出す
+      types: [
+        // ?: 知らないタイプ（null）は入れない
+        for (final t in pokemon['types'] as List<dynamic>)
+          ?PokeType.fromApiName(t['type']['name'] as String),
+      ],
     );
   }
 
