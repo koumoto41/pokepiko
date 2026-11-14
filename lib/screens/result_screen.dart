@@ -5,11 +5,37 @@ import '../app_theme.dart';
 import '../models/pokemon.dart';
 import '../models/quiz_settings.dart';
 import '../providers/high_score_provider.dart';
+import '../providers/sound_provider.dart';
 import 'quiz_screen.dart';
 import 'route_names.dart';
 import 'widgets/cached_image.dart';
 import 'widgets/celebration.dart';
 import 'widgets/type_badge.dart';
+
+/// 正解数の段（10問なら 全問／8〜9／5〜7／0〜4 の4段階）
+/// 段ごとに、星の数・ほめ言葉・鳴らす曲が決まっている
+enum ResultRank {
+  perfect(3, 'かんぺき！ ポケモン マスターだね！', 'se/result_perfect.wav'),
+  great(3, 'すごい！ ポケモン はかせだね！', 'se/result_great.wav'),
+  good(2, 'よく できました！ あと すこし！', 'se/result_good.wav'),
+  // 星は、子どもががっかりしないよう最低でも1つ。曲も悲しくしない
+  tryAgain(1, 'がんばったね！ つぎも ちょうせん！', 'se/result_try.wav');
+
+  final int stars;
+  final String message;
+  final String jingle; // 鳴らす曲（assets/ からの場所）
+
+  const ResultRank(this.stars, this.message, this.jingle);
+
+  /// 正解数から段を決める（全問、8割以上、5割以上、それ以外）
+  static ResultRank of(int correct, int total) {
+    if (correct >= total) return perfect;
+    final ratio = correct / total;
+    if (ratio >= 0.8) return great;
+    if (ratio >= 0.5) return good;
+    return tryAgain;
+  }
+}
 
 /// 結果画面：星・正解数と、間違えたポケモンの一覧
 /// 表示したときに1回だけハイスコアを記録する
@@ -30,19 +56,6 @@ class ResultScreen extends ConsumerStatefulWidget {
     required this.wrongPokemons,
     this.newlyFound = 0,
   });
-
-  /// 正解数に合わせた、星の数とほめ言葉（10問なら 全問／8〜9／5〜7／0〜4 の4段階）
-  /// 戻り値は「レコード」：名前つきの値をいくつかまとめて返せる
-  /// 星は、子どもががっかりしないよう最低でも1つ
-  static ({int stars, String message}) rankFor(int correct, int total) {
-    if (correct >= total) {
-      return (stars: 3, message: 'かんぺき！ ポケモン マスターだね！');
-    }
-    final ratio = correct / total;
-    if (ratio >= 0.8) return (stars: 3, message: 'すごい！ ポケモン はかせだね！');
-    if (ratio >= 0.5) return (stars: 2, message: 'よく できました！ あと すこし！');
-    return (stars: 1, message: 'がんばったね！ つぎも ちょうせん！');
-  }
 
   @override
   ConsumerState<ResultScreen> createState() => _ResultScreenState();
@@ -65,6 +78,10 @@ class _ResultScreenState extends ConsumerState<ResultScreen> {
     _isNewRecord = ref
         .read(highScoresProvider.notifier)
         .submit(widget.variant, widget.mode, widget.correctCount);
+    // 正解数に合わせた曲を、1回だけ鳴らす
+    ref
+        .read(soundServiceProvider)
+        .playJingle(ResultRank.of(widget.correctCount, widget.total).jingle);
   }
 
   @override
@@ -73,7 +90,7 @@ class _ResultScreenState extends ConsumerState<ResultScreen> {
     final best = ref
         .watch(highScoresProvider)
         .value?[(widget.variant, widget.mode)];
-    final rank = ResultScreen.rankFor(widget.correctCount, widget.total);
+    final rank = ResultRank.of(widget.correctCount, widget.total);
     final compact = context.isCompactHeight; // iPhone SE など縦が短い画面
 
     return GradientBackground(

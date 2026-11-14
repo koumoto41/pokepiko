@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:material_ui/material_ui.dart';
@@ -6,20 +8,25 @@ import 'package:pokepiko/models/pokemon.dart';
 import 'package:pokepiko/models/quiz_settings.dart';
 import 'package:pokepiko/providers/data_providers.dart';
 import 'package:pokepiko/providers/high_score_provider.dart';
+import 'package:pokepiko/providers/sound_provider.dart';
 import 'package:pokepiko/screens/result_screen.dart';
 import 'package:pokepiko/screens/widgets/celebration.dart';
 
+import 'bgm_observer_test.dart' show FakeSoundService;
 import 'fakes.dart';
 import 'high_score_test.dart' show FakeHighScoreStore;
 
 /// 全問正解のお祝い（花火と風船）
 void main() {
+  late FakeSoundService sound;
+
   Future<void> pumpResult(
     WidgetTester tester,
     int correct, {
     bool disableAnimations = false,
     Size size = const Size(375, 667), // iPhone SE
   }) async {
+    sound = FakeSoundService();
     tester.view.physicalSize = size;
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.reset);
@@ -30,6 +37,7 @@ void main() {
             FakePokemonRepository()..imagesFail = true,
           ),
           highScoreStoreProvider.overrideWithValue(FakeHighScoreStore()),
+          soundServiceProvider.overrideWithValue(sound),
         ],
         child: MaterialApp(
           theme: buildAppTheme(),
@@ -113,5 +121,33 @@ void main() {
       await tester.pump(const Duration(seconds: 1));
     }
     expect(tester.takeException(), isNull);
+  });
+
+  group('結果画面の曲', () {
+    for (final (correct, jingle) in [
+      (10, 'se/result_perfect.wav'),
+      (9, 'se/result_great.wav'),
+      (8, 'se/result_great.wav'),
+      (7, 'se/result_good.wav'),
+      (5, 'se/result_good.wav'),
+      (4, 'se/result_try.wav'),
+      (0, 'se/result_try.wav'),
+    ]) {
+      testWidgets('$correct問正解で $jingle を1回鳴らす', (tester) async {
+        await pumpResult(tester, correct);
+        expect(sound.jingles, [jingle]);
+        if (correct == 10) await tester.pump(Celebration.duration);
+      });
+    }
+
+    test('どの段の曲のファイルも、assets にある', () {
+      for (final rank in ResultRank.values) {
+        expect(
+          File('assets/${rank.jingle}').existsSync(),
+          isTrue,
+          reason: rank.jingle,
+        );
+      }
+    });
   });
 }

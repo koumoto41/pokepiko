@@ -167,9 +167,149 @@ def make_quiz_bgm():
     return render_song(melody, bass, eighth=60 / 140 / 2, hat=True)
 
 
+# ---------------------------------------------------------------
+# 結果画面のジングル（正解数の段ごとに1曲。くり返さず1回だけ鳴らす）
+# ---------------------------------------------------------------
+
+def brass(x):
+    """ラッパ風の音：倍音を多めに重ねて、明るく張りのある音にする"""
+    return sum(math.sin(2 * math.pi * x * k) / k for k in range(1, 7))
+
+
+def snare(buf, start, vol=0.35, length=0.12, seed=0):
+    """小太鼓：ザッと鳴ってすぐ消えるノイズ"""
+    rnd = random.Random(seed)
+    s0 = int(start * RATE)
+    n = int(length * RATE)
+    for j in range(n):
+        if s0 + j < len(buf):
+            buf[s0 + j] += vol * (1 - j / n) ** 2 * rnd.uniform(-1, 1)
+
+
+def timpani(buf, start, f=65.0, vol=0.6, length=0.6):
+    """ティンパニ：低い音が「ドーン」と鳴って、音程が少し下がりながら消える"""
+    s0 = int(start * RATE)
+    phase = 0.0
+    for j in range(int(length * RATE)):
+        t = j / RATE
+        phase += (f * (1 + 0.5 * math.exp(-t * 20))) / RATE
+        if s0 + j < len(buf):
+            buf[s0 + j] += vol * math.exp(-t * 5) * math.sin(2 * math.pi * phase)
+
+
+def cymbal(buf, start, vol=0.18, length=2.0):
+    """シンバル：長く残る「シャーン」。ノイズを少しなめらかにして耳に痛くないようにする"""
+    rnd = random.Random(7)
+    s0 = int(start * RATE)
+    prev = 0.0
+    for j in range(int(length * RATE)):
+        t = j / RATE
+        prev = prev * 0.3 + rnd.uniform(-1, 1) * 0.7
+        if s0 + j < len(buf):
+            buf[s0 + j] += vol * math.exp(-t * 2.2) * prev
+
+
+def play(buf, notes, wave_fn, vol, beat, release=0.06, decay=None):
+    """notes: (開始の拍, 長さの拍, 音名) のリスト。和音は同じ開始の拍に並べる"""
+    for start, length, name in notes:
+        tone(buf, start * beat, length * beat * 0.95, freq(name), vol, wave_fn,
+             attack=0.015, release=release, decay=decay)
+
+
+def make_result_perfect():
+    """全問正解：小太鼓のロール → ラッパのファンファーレ → 大きな和音とシンバル（約7秒）"""
+    beat = 0.22  # 8分音符1つの長さ（秒）
+    buf = [0.0] * int(7.2 * RATE)
+    # 小太鼓のロール（だんだん速く、だんだん強く）
+    t = 0.0
+    k = 0
+    while t < 0.85:
+        snare(buf, t, vol=0.12 + 0.25 * t, length=0.08, seed=k)
+        t += 0.09 - 0.05 * t
+        k += 1
+    o = 0.9 / beat  # ロールのあとから始める（拍の単位）
+    melody = [
+        (0, 1, "G4"), (1, 1, "G4"), (2, 1, "G4"), (3, 3, "C5"),
+        (6, 1, "E5"), (7, 1, "D5"), (8, 1, "C5"), (9, 1, "E5"), (10, 3, "G5"),
+        (13, 1, "A5"), (14, 1, "G5"), (15, 1, "E5"), (16, 1, "F5"), (17, 1, "D5"),
+        (18, 8, "C6"),
+    ]
+    # 最後の和音は、ゆっくり小さくなって消えるように（release を長く）
+    play(buf, [(o + s, l, n) for s, l, n in melody], brass, 0.30, beat,
+         release=0.6)
+    # 下で支える和音（ラッパの合奏っぽく）
+    chords = [
+        (3, 3, ["E4", "G4"]), (10, 3, ["B4", "D5"]), (13, 5, ["C5", "F5"]),
+        (18, 8, ["E5", "G5", "C5"]),
+    ]
+    for s, l, names in chords:
+        play(buf, [(o + s, l, n) for n in names], brass, 0.14, beat,
+             release=0.6)
+    # ベースとティンパニ
+    for s, n in [(3, "C3"), (6, "C3"), (10, "G2"), (13, "F2"), (16, "G2")]:
+        play(buf, [(o + s, 2.5, n)], triangle, 0.35, beat)
+    for s, f in [(0, 98), (3, 65), (10, 98), (13, 87), (16, 98)]:
+        timpani(buf, (o + s) * beat, f=f, vol=0.45)
+    # 最後：ティンパニのロール → ドーン ＋ シンバル
+    for j in range(8):
+        timpani(buf, (o + 16) * beat + j * 0.055, f=65, vol=0.18, length=0.2)
+    timpani(buf, (o + 18) * beat, f=65, vol=0.45, length=1.5)
+    play(buf, [(o + 18, 8, "C3")], triangle, 0.45, beat)
+    cymbal(buf, (o + 18) * beat, vol=0.22, length=2.5)
+    return buf
+
+
+def make_result_great():
+    """8〜9問：きらきらした音で駆けあがる、明るいジングル（約3.5秒）"""
+    beat = 0.14
+    buf = [0.0] * int(3.6 * RATE)
+    notes = [(i, 1.5, n) for i, n in enumerate(
+        ["C5", "E5", "G5", "C6", "E6", "G6"])]
+    notes += [(7, 2, "E6"), (9, 2, "D6"), (11, 10, "C6")]
+    play(buf, notes, bell, 0.4, beat, release=0.3, decay=2.5)
+    play(buf, [(11, 10, n) for n in ["E5", "G5"]], bell, 0.2, beat,
+         release=0.4, decay=1.5)
+    play(buf, [(0, 6, "C3"), (7, 4, "G2"), (11, 10, "C3")], triangle, 0.4, beat)
+    snare(buf, 11 * beat, vol=0.2)
+    cymbal(buf, 11 * beat, vol=0.1, length=1.5)
+    return buf
+
+
+def make_result_good():
+    """5〜7問：はずむような、楽しいジングル（約2.5秒）"""
+    beat = 0.16
+    buf = [0.0] * int(2.6 * RATE)
+    melody = [(0, 1, "F5"), (1, 1, "A5"), (2, 1, "G5"), (3, 1, "F5"),
+              (4, 1, "D5"), (5, 1, "G5"), (6, 2, "A5"), (8, 6, "F5")]
+    play(buf, melody, soft_square, 0.3, beat)
+    play(buf, [(8, 6, n) for n in ["A4", "C5"]], soft_square, 0.12, beat)
+    play(buf, [(0, 2, "F3"), (2, 2, "C3"), (4, 2, "G3"), (6, 2, "C3"),
+               (8, 6, "F3")], triangle, 0.4, beat)
+    for s in [1, 3, 5, 7]:
+        snare(buf, s * beat, vol=0.08, length=0.05, seed=s)
+    return buf
+
+
+def make_result_try():
+    """0〜4問：ゆったりした、前向きなジングル（悲しくしない。約2.5秒）"""
+    beat = 0.22
+    buf = [0.0] * int(2.7 * RATE)
+    melody = [(0, 1, "C5"), (1, 1, "E5"), (2, 1, "D5"), (3, 1, "G4"),
+              (4, 1, "A4"), (5, 1, "B4"), (6, 5, "C5")]
+    play(buf, melody, triangle, 0.45, beat, release=0.15)
+    play(buf, [(6, 5, n) for n in ["E4", "G4"]], triangle, 0.18, beat,
+         release=0.2)
+    play(buf, [(0, 3, "C3"), (3, 3, "G2"), (6, 5, "C3")], triangle, 0.35, beat)
+    return buf
+
+
 if __name__ == "__main__":
     out = Path(sys.argv[1])
     save(out / "se" / "correct.wav", make_correct())
     save(out / "se" / "wrong.wav", make_wrong())
     save(out / "bgm" / "title.wav", make_title_bgm(), peak=0.6)
     save(out / "bgm" / "quiz.wav", make_quiz_bgm(), peak=0.6)
+    save(out / "se" / "result_perfect.wav", make_result_perfect(), peak=0.85)
+    save(out / "se" / "result_great.wav", make_result_great(), peak=0.7)
+    save(out / "se" / "result_good.wav", make_result_good(), peak=0.7)
+    save(out / "se" / "result_try.wav", make_result_try(), peak=0.7)

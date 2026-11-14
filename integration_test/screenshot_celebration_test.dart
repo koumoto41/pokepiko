@@ -1,3 +1,4 @@
+import 'package:audioplayers/audioplayers.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:integration_test/integration_test.dart';
@@ -5,6 +6,7 @@ import 'package:material_ui/material_ui.dart';
 import 'package:pokepiko/main.dart' as app;
 import 'package:pokepiko/providers/quiz_controller.dart';
 import 'package:pokepiko/screens/quiz_screen.dart';
+import 'package:pokepiko/screens/result_screen.dart';
 import 'package:pokepiko/screens/widgets/choice_button.dart';
 
 /// 10問すべてに正解して、全問正解のお祝い（花火と風船）を撮る
@@ -32,6 +34,19 @@ void main() {
     await app.main();
     await waitFor(tester, find.text('はじめる'));
     await wait(tester, 500);
+
+    // --- 結果画面の4曲が、iPhone で読み込めて再生できるか ---
+    final player = AudioPlayer();
+    for (final rank in ResultRank.values) {
+      await player.play(AssetSource(rank.jingle));
+      await wait(tester, 500);
+      final length = await player.getDuration();
+      debugPrint('${rank.jingle}: ${player.state} ${length?.inMilliseconds}ms');
+      expect(player.state, PlayerState.playing, reason: rank.jingle);
+      expect(length!.inMilliseconds, greaterThan(2000), reason: rank.jingle);
+      await player.stop();
+    }
+    await player.dispose();
     await tester.tap(find.text('はじめる'));
     await wait(tester, 1000);
     await tester.tap(find.text('スタート！'));

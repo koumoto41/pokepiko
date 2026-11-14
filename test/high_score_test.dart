@@ -4,8 +4,11 @@ import 'package:material_ui/material_ui.dart';
 import 'package:pokepiko/data/high_score_store.dart';
 import 'package:pokepiko/models/quiz_settings.dart';
 import 'package:pokepiko/providers/high_score_provider.dart';
+import 'package:pokepiko/providers/sound_provider.dart';
 import 'package:pokepiko/screens/result_screen.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+
+import 'bgm_observer_test.dart' show FakeSoundService;
 
 /// メモリの中だけに保存する、偽のハイスコア保存係
 class FakeHighScoreStore implements HighScoreStore {
@@ -29,7 +32,10 @@ void main() {
   setUp(() {
     store = FakeHighScoreStore();
     container = ProviderContainer(
-      overrides: [highScoreStoreProvider.overrideWithValue(store)],
+      overrides: [
+        highScoreStoreProvider.overrideWithValue(store),
+        soundServiceProvider.overrideWithValue(FakeSoundService()),
+      ],
     );
   });
   tearDown(() => container.dispose());
