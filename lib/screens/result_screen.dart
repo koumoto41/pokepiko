@@ -8,6 +8,7 @@ import '../providers/high_score_provider.dart';
 import 'quiz_screen.dart';
 import 'route_names.dart';
 import 'widgets/cached_image.dart';
+import 'widgets/celebration.dart';
 import 'widgets/type_badge.dart';
 
 /// 結果画面：星・正解数と、間違えたポケモンの一覧
@@ -77,166 +78,181 @@ class _ResultScreenState extends ConsumerState<ResultScreen> {
 
     return GradientBackground(
       colors: const [Color(0xFFFFF59D), AppColors.cream], // 黄色 → クリーム色
-      child: Scaffold(
-        backgroundColor: Colors.transparent,
-        appBar: AppBar(
-          title: const Text('けっか'),
-          automaticallyImplyLeading: false, // 戻るボタンを出さない
-        ),
-        body: SafeArea(
-          child: Padding(
-            padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
-            child: Column(
-              children: [
-                _Stars(count: rank.stars, scale: compact ? 0.75 : 1),
-                // 長いメッセージでも2行にならないよう、入りきらなければ縮める
-                FittedBox(
-                  fit: BoxFit.scaleDown,
-                  child: Text(
-                    rank.message,
-                    style: const TextStyle(
-                      fontSize: 24,
-                      fontWeight: FontWeight.bold,
+      // Stack：結果画面の上に、全問正解のお祝い（花火と風船）を重ねる
+      child: Stack(
+        children: [
+          Scaffold(
+            backgroundColor: Colors.transparent,
+            appBar: AppBar(
+              title: const Text('けっか'),
+              automaticallyImplyLeading: false, // 戻るボタンを出さない
+            ),
+            body: SafeArea(
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+                child: Column(
+                  children: [
+                    _Stars(count: rank.stars, scale: compact ? 0.75 : 1),
+                    // 長いメッセージでも2行にならないよう、入りきらなければ縮める
+                    FittedBox(
+                      fit: BoxFit.scaleDown,
+                      child: Text(
+                        rank.message,
+                        style: const TextStyle(
+                          fontSize: 24,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
                     ),
-                  ),
-                ),
-                const SizedBox(height: 4),
-                Text.rich(
-                  TextSpan(
-                    children: [
-                      TextSpan(text: '${widget.total} もん中 '),
+                    const SizedBox(height: 4),
+                    Text.rich(
                       TextSpan(
-                        text: '${widget.correctCount}',
-                        style: const TextStyle(
-                          fontSize: 44,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.deepOrange,
-                        ),
+                        children: [
+                          TextSpan(text: '${widget.total} もん中 '),
+                          TextSpan(
+                            text: '${widget.correctCount}',
+                            style: const TextStyle(
+                              fontSize: 44,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.deepOrange,
+                            ),
+                          ),
+                          const TextSpan(text: ' もん せいかい'),
+                        ],
                       ),
-                      const TextSpan(text: ' もん せいかい'),
-                    ],
-                  ),
-                  style: const TextStyle(fontSize: 22),
-                ),
-                if (widget.newlyFound > 0)
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      const Icon(Icons.menu_book, color: Colors.orange),
-                      const SizedBox(width: 4),
-                      Text(
-                        'ずかんに ${widget.newlyFound}ひき ふえたよ！',
-                        style: const TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                    ],
-                  ),
-                // ハイスコアを更新したら、お祝いの表示
-                FutureBuilder<bool>(
-                  future: _isNewRecord,
-                  builder: (context, snapshot) => snapshot.data == true
-                      ? const _NewRecordBanner()
-                      : Text(
-                          best == null
-                              ? ''
-                              : '${widget.variant.label}・${widget.mode.label}の'
-                                    ' ハイスコア：$best もん',
-                          style: const TextStyle(fontSize: 18),
-                        ),
-                ),
-                const SizedBox(height: 12),
-                // 間違えたポケモンを、絵つきのカードで並べる
-                Expanded(
-                  child: wrongPokemons.isEmpty
-                      ? const Center(
-                          child: Text(
-                            'ぜんもん せいかい！',
-                            style: TextStyle(
-                              fontSize: 32,
+                      style: const TextStyle(fontSize: 22),
+                    ),
+                    if (widget.newlyFound > 0)
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          const Icon(Icons.menu_book, color: Colors.orange),
+                          const SizedBox(width: 4),
+                          Text(
+                            'ずかんに ${widget.newlyFound}ひき ふえたよ！',
+                            style: const TextStyle(
+                              fontSize: 18,
                               fontWeight: FontWeight.bold,
                             ),
                           ),
-                        )
-                      : Column(
-                          children: [
-                            const Text(
-                              'おぼえてね！',
-                              style: TextStyle(fontSize: 20),
-                            ),
-                            const SizedBox(height: 8),
-                            // 横にスワイプして見る列（カードが途中で切れず、名前まで見える）
-                            Expanded(
-                              child: ListView.separated(
-                                scrollDirection: Axis.horizontal,
-                                itemCount: wrongPokemons.length,
-                                separatorBuilder: (_, _) =>
-                                    const SizedBox(width: 8),
-                                itemBuilder: (_, i) => AspectRatio(
-                                  aspectRatio: 0.8,
-                                  child: _WrongPokemonCard(
-                                    // タイプクイズのときは、タイプもいっしょに覚えられるように出す
-                                    showTypes:
-                                        widget.variant != QuizVariant.name,
-                                    pokemon: wrongPokemons[i],
-                                  ),
-                                ),
+                        ],
+                      ),
+                    // ハイスコアを更新したら、お祝いの表示
+                    FutureBuilder<bool>(
+                      future: _isNewRecord,
+                      builder: (context, snapshot) => snapshot.data == true
+                          ? const _NewRecordBanner()
+                          // 長いと2行に折れるので、入りきらなければ縮めて1行にする
+                          : FittedBox(
+                              fit: BoxFit.scaleDown,
+                              child: Text(
+                                best == null
+                                    ? ''
+                                    : '${widget.variant.label}・${widget.mode.label}の'
+                                          ' ハイスコア：$best もん',
+                                style: const TextStyle(fontSize: 18),
                               ),
                             ),
-                          ],
+                    ),
+                    const SizedBox(height: 12),
+                    // 間違えたポケモンを、絵つきのカードで並べる
+                    Expanded(
+                      child: wrongPokemons.isEmpty
+                          ? const Center(
+                              child: Text(
+                                'ぜんもん せいかい！',
+                                style: TextStyle(
+                                  fontSize: 32,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            )
+                          : Column(
+                              children: [
+                                const Text(
+                                  'おぼえてね！',
+                                  style: TextStyle(fontSize: 20),
+                                ),
+                                const SizedBox(height: 8),
+                                // 横にスワイプして見る列（カードが途中で切れず、名前まで見える）
+                                Expanded(
+                                  child: ListView.separated(
+                                    scrollDirection: Axis.horizontal,
+                                    itemCount: wrongPokemons.length,
+                                    separatorBuilder: (_, _) =>
+                                        const SizedBox(width: 8),
+                                    itemBuilder: (_, i) => AspectRatio(
+                                      aspectRatio: 0.8,
+                                      child: _WrongPokemonCard(
+                                        // タイプクイズのときは、タイプもいっしょに覚えられるように出す
+                                        showTypes:
+                                            widget.variant != QuizVariant.name,
+                                        pokemon: wrongPokemons[i],
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                    ),
+                    const SizedBox(height: 12),
+                    SizedBox(
+                      width: double.infinity,
+                      height: compact ? 60 : 68,
+                      child: FilledButton(
+                        style: FilledButton.styleFrom(
+                          backgroundColor: Colors.red,
                         ),
-                ),
-                const SizedBox(height: 12),
-                SizedBox(
-                  width: double.infinity,
-                  height: compact ? 60 : 68,
-                  child: FilledButton(
-                    style: FilledButton.styleFrom(backgroundColor: Colors.red),
-                    // 同じ画面を作り直して、もう1ゲーム
-                    onPressed: () => Navigator.of(context).pushReplacement(
-                      MaterialPageRoute(
-                        settings: const RouteSettings(name: RouteNames.quiz),
-                        builder: (_) => const QuizScreen(),
+                        // 同じ画面を作り直して、もう1ゲーム
+                        onPressed: () => Navigator.of(context).pushReplacement(
+                          MaterialPageRoute(
+                            settings: const RouteSettings(
+                              name: RouteNames.quiz,
+                            ),
+                            builder: (_) => const QuizScreen(),
+                          ),
+                        ),
+                        child: const Text('もういちど'),
                       ),
                     ),
-                    child: const Text('もういちど'),
-                  ),
-                ),
-                const SizedBox(height: 8),
-                Row(
-                  children: [
-                    Expanded(
-                      child: SizedBox(
-                        height: compact ? 52 : 60,
-                        child: OutlinedButton(
-                          style: _smallButtonStyle,
-                          // 結果画面を閉じると、下にある設定画面に戻る
-                          onPressed: () => Navigator.of(context).pop(),
-                          child: const Text('せってい'),
+                    const SizedBox(height: 8),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: SizedBox(
+                            height: compact ? 52 : 60,
+                            child: OutlinedButton(
+                              style: _smallButtonStyle,
+                              // 結果画面を閉じると、下にある設定画面に戻る
+                              onPressed: () => Navigator.of(context).pop(),
+                              child: const Text('せってい'),
+                            ),
+                          ),
                         ),
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: SizedBox(
-                        height: compact ? 52 : 60,
-                        child: OutlinedButton(
-                          style: _smallButtonStyle,
-                          // 一番下（最初）の画面＝タイトルまで戻る
-                          onPressed: () =>
-                              Navigator.of(context)
-                                  .popUntil((route) => route.isFirst),
-                          child: const Text('タイトル'),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: SizedBox(
+                            height: compact ? 52 : 60,
+                            child: OutlinedButton(
+                              style: _smallButtonStyle,
+                              // 一番下（最初）の画面＝タイトルまで戻る
+                              onPressed: () =>
+                                  Navigator.of(context)
+                                      .popUntil((route) => route.isFirst),
+                              child: const Text('タイトル'),
+                            ),
+                          ),
                         ),
-                      ),
+                      ],
                     ),
                   ],
                 ),
-              ],
+              ),
             ),
           ),
-        ),
+          if (widget.correctCount >= widget.total)
+            const Positioned.fill(child: Celebration()),
+        ],
       ),
     );
   }
