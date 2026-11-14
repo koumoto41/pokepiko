@@ -25,6 +25,8 @@ class FakePokemonRepository implements PokemonRepository {
     id: id,
     name: 'P$id',
     artworkUrl: 'https://example.com/art/$id.png',
+    // 7の倍数の番号は、ドット絵がないポケモンにする（新しい世代の一部と同じ）
+    spriteUrl: id % 7 == 0 ? null : 'https://example.com/dot/$id.png',
     types: typesOf(id),
   );
 

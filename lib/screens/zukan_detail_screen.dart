@@ -11,6 +11,7 @@ import '../providers/settings_provider.dart';
 import '../providers/sound_provider.dart';
 import 'route_names.dart';
 import 'widgets/cached_image.dart';
+import 'widgets/trimmed_sprite.dart';
 import 'widgets/type_badge.dart';
 
 /// 図鑑のくわしいページ
@@ -75,38 +76,10 @@ class _DetailBody extends ConsumerWidget {
     return ListView(
       padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
       children: [
-        // 大きな絵（ドット絵があれば右下に小さく）
-        SizedBox(
+        // 大きな絵：イラストとドット絵を、左右のスワイプで切りかえる
+        _PokemonPictures(
+          pokemon: pokemon,
           height: context.isCompactHeight ? 200 : 260,
-          child: Card(
-            margin: EdgeInsets.zero,
-            child: Stack(
-              children: [
-                Positioned.fill(
-                  child: Padding(
-                    padding: const EdgeInsets.all(12),
-                    child: CachedImage(
-                      url:
-                          pokemon.artworkUrl ??
-                          PokeApiClient.artworkUrl(pokemon.id),
-                    ),
-                  ),
-                ),
-                if (pokemon.spriteUrl case final sprite?)
-                  Positioned(
-                    right: 8,
-                    bottom: 8,
-                    width: 64,
-                    height: 64,
-                    child: CachedImage(
-                      url: sprite,
-                      filterQuality: FilterQuality.none,
-                      error: const SizedBox(),
-                    ),
-                  ),
-              ],
-            ),
-          ),
         ),
         const SizedBox(height: 12),
         Row(
@@ -152,6 +125,122 @@ class _DetailBody extends ConsumerWidget {
           const SizedBox(height: 12),
           _EvolutionCard(entry: entry, currentId: pokemon.id),
         ],
+      ],
+    );
+  }
+}
+
+/// イラストとドット絵を1枚ずつ見せる（左右にスワイプして切りかえ）
+/// ドット絵がないポケモンは、イラストだけ
+class _PokemonPictures extends StatefulWidget {
+  final Pokemon pokemon;
+  final double height;
+
+  const _PokemonPictures({required this.pokemon, required this.height});
+
+  @override
+  State<_PokemonPictures> createState() => _PokemonPicturesState();
+}
+
+class _PokemonPicturesState extends State<_PokemonPictures> {
+  // PageController：いま何枚目か、を持っていて、ほかの枚に動かすこともできる
+  final _controller = PageController();
+  int _page = 0;
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  void _goTo(int page) => _controller.animateToPage(
+    page,
+    duration: const Duration(milliseconds: 300),
+    curve: Curves.easeOut,
+  );
+
+  @override
+  Widget build(BuildContext context) {
+    final pokemon = widget.pokemon;
+    final pages = [
+      (
+        label: 'イラスト',
+        picture: CachedImage(
+          url: pokemon.artworkUrl ?? PokeApiClient.artworkUrl(pokemon.id),
+        ),
+      ),
+      if (pokemon.spriteUrl case final sprite?)
+        (
+          label: 'ドット',
+          // まわりの透明な余白を切りとって、大きく（ぼかさずカクカクのまま）
+          picture: TrimmedSprite(url: sprite),
+        ),
+    ];
+
+    return Column(
+      children: [
+        SizedBox(
+          height: widget.height,
+          child: Card(
+            margin: EdgeInsets.zero,
+            clipBehavior: Clip.antiAlias,
+            // PageView：横にスワイプして1枚ずつ見る
+            child: PageView(
+              controller: _controller,
+              onPageChanged: (page) => setState(() => _page = page),
+              children: [
+                for (final p in pages)
+                  Padding(padding: const EdgeInsets.all(12), child: p.picture),
+              ],
+            ),
+          ),
+        ),
+        // 2枚あるときだけ、何枚目かの丸と名前を出す（押しても切りかえられる）
+        if (pages.length > 1)
+          Padding(
+            padding: const EdgeInsets.only(top: 6),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                for (final (i, p) in pages.indexed)
+                  GestureDetector(
+                    onTap: () => _goTo(i),
+                    behavior: HitTestBehavior.opaque,
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 10,
+                        vertical: 4,
+                      ),
+                      child: Row(
+                        children: [
+                          AnimatedContainer(
+                            duration: const Duration(milliseconds: 200),
+                            width: 12,
+                            height: 12,
+                            decoration: BoxDecoration(
+                              shape: BoxShape.circle,
+                              color: i == _page
+                                  ? Colors.orange
+                                  : Colors.grey.shade300,
+                            ),
+                          ),
+                          const SizedBox(width: 4),
+                          Text(
+                            p.label,
+                            style: TextStyle(
+                              fontSize: 16,
+                              fontWeight: i == _page
+                                  ? FontWeight.bold
+                                  : FontWeight.normal,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+              ],
+            ),
+          ),
       ],
     );
   }
