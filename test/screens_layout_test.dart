@@ -203,12 +203,20 @@ void main() {
     });
   }
 
-  test('星の数：9問以上で3つ、5問以上で2つ、それ以外も1つはもらえる', () {
-    expect(ResultScreen.starsFor(10, 10), 3);
-    expect(ResultScreen.starsFor(9, 10), 3);
-    expect(ResultScreen.starsFor(8, 10), 2);
-    expect(ResultScreen.starsFor(5, 10), 2);
-    expect(ResultScreen.starsFor(4, 10), 1);
-    expect(ResultScreen.starsFor(0, 10), 1);
+  test('正解数でメッセージが4段階に変わる（全問／8〜9／5〜7／0〜4）', () {
+    ({int stars, String message}) rank(int correct) =>
+        ResultScreen.rankFor(correct, 10);
+
+    expect(rank(10), (stars: 3, message: 'かんぺき！ ポケモン マスターだね！'));
+    for (final n in [9, 8]) {
+      expect(rank(n), (stars: 3, message: 'すごい！ ポケモン はかせだね！'));
+    }
+    for (final n in [7, 6, 5]) {
+      expect(rank(n), (stars: 2, message: 'よく できました！ あと すこし！'));
+    }
+    // 0問でも星は1つもらえる
+    for (final n in [4, 3, 2, 1, 0]) {
+      expect(rank(n), (stars: 1, message: 'がんばったね！ つぎも ちょうせん！'));
+    }
   });
 }

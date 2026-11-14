@@ -30,12 +30,17 @@ class ResultScreen extends ConsumerStatefulWidget {
     this.newlyFound = 0,
   });
 
-  /// 星の数（子どもががっかりしないよう、最低でも1つ）
-  static int starsFor(int correct, int total) {
+  /// 正解数に合わせた、星の数とほめ言葉（10問なら 全問／8〜9／5〜7／0〜4 の4段階）
+  /// 戻り値は「レコード」：名前つきの値をいくつかまとめて返せる
+  /// 星は、子どもががっかりしないよう最低でも1つ
+  static ({int stars, String message}) rankFor(int correct, int total) {
+    if (correct >= total) {
+      return (stars: 3, message: 'かんぺき！ ポケモン マスターだね！');
+    }
     final ratio = correct / total;
-    if (ratio >= 0.9) return 3;
-    if (ratio >= 0.5) return 2;
-    return 1;
+    if (ratio >= 0.8) return (stars: 3, message: 'すごい！ ポケモン はかせだね！');
+    if (ratio >= 0.5) return (stars: 2, message: 'よく できました！ あと すこし！');
+    return (stars: 1, message: 'がんばったね！ つぎも ちょうせん！');
   }
 
   @override
@@ -52,12 +57,6 @@ class _ResultScreenState extends ConsumerState<ResultScreen> {
     padding: const EdgeInsets.symmetric(horizontal: 8),
   );
 
-  static const _messages = {
-    3: 'すごい！ ポケモン はかせだね！',
-    2: 'よく できました！',
-    1: 'がんばったね！ つぎも ちょうせん！',
-  };
-
   @override
   void initState() {
     super.initState();
@@ -73,7 +72,7 @@ class _ResultScreenState extends ConsumerState<ResultScreen> {
     final best = ref
         .watch(highScoresProvider)
         .value?[(widget.variant, widget.mode)];
-    final stars = ResultScreen.starsFor(widget.correctCount, widget.total);
+    final rank = ResultScreen.rankFor(widget.correctCount, widget.total);
     final compact = context.isCompactHeight; // iPhone SE など縦が短い画面
 
     return GradientBackground(
@@ -89,12 +88,12 @@ class _ResultScreenState extends ConsumerState<ResultScreen> {
             padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
             child: Column(
               children: [
-                _Stars(count: stars, scale: compact ? 0.75 : 1),
+                _Stars(count: rank.stars, scale: compact ? 0.75 : 1),
                 // 長いメッセージでも2行にならないよう、入りきらなければ縮める
                 FittedBox(
                   fit: BoxFit.scaleDown,
                   child: Text(
-                    _messages[stars]!,
+                    rank.message,
                     style: const TextStyle(
                       fontSize: 24,
                       fontWeight: FontWeight.bold,
