@@ -86,4 +86,27 @@ void main() {
     // 動き続けるものがないので、pumpAndSettle も終わる
     await tester.pumpAndSettle();
   });
+
+  testWidgets('主役を押すと、ちがうポケモンに入れかわる', (tester) async {
+    await pumpTitle(tester, found: {4, 5, 6});
+    for (var i = 0; i < 5; i++) {
+      final before = featuredId(tester);
+      await tester.tap(find.byType(FeaturedPokemon));
+      await tester.pump(const Duration(milliseconds: 400));
+      final after = featuredId(tester);
+      expect(after, isNot(before));
+      expect(after, isIn([4, 5, 6])); // 図鑑でみつけたポケモンから選ぶ
+    }
+  });
+
+  testWidgets('みつけたのが1匹だけでも、代表の9匹をまぜて入れかわる', (tester) async {
+    await pumpTitle(tester, found: {4});
+    expect(featuredId(tester), 4);
+    await tester.tap(find.byType(FeaturedPokemon));
+    await tester.pump(const Duration(milliseconds: 400));
+    expect(
+      featuredId(tester),
+      isIn([for (final g in Generation.all) g.mascotId]),
+    );
+  });
 }

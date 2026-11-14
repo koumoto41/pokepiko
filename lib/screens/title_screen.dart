@@ -25,6 +25,7 @@ class TitleScreen extends ConsumerStatefulWidget {
 class _TitleScreenState extends ConsumerState<TitleScreen> {
   final _random = Random();
   int? _featuredId; // 主役のポケモン（図鑑の記録を読み込んでから決める）
+  List<int> _pool = const []; // 主役を選ぶ候補
   List<int> _silhouetteIds = const []; // 背景のシルエットに使うポケモン
 
   // 図鑑でまだ1匹もみつけていないときは、設定画面の代表9匹を使う
@@ -33,11 +34,23 @@ class _TitleScreenState extends ConsumerState<TitleScreen> {
   /// 図鑑の記録から、主役と背景のポケモンを決める（画面を開いているあいだは変えない）
   void _pickPokemon(Set<int> found) {
     final pool = found.isEmpty ? _mascots : found.toList();
+    // 1匹しかいないと押しても入れかわらないので、代表の9匹もまぜる
+    _pool = pool.length > 1 ? pool : {...pool, ..._mascots}.toList();
     _featuredId = pool[_random.nextInt(pool.length)];
     _silhouetteIds = ([
       ...pool,
       ..._mascots,
     ]..shuffle(_random)).take(8).toList();
+  }
+
+  /// 主役を、いまとはちがうポケモンに変える（主役を押したとき）
+  void _changeFeatured() {
+    final others = [
+      for (final id in _pool)
+        if (id != _featuredId) id,
+    ];
+    if (others.isEmpty) return;
+    setState(() => _featuredId = others[_random.nextInt(others.length)]);
   }
 
   @override
@@ -49,7 +62,11 @@ class _TitleScreenState extends ConsumerState<TitleScreen> {
     final compact = context.isCompactHeight;
     final featured = _featuredId == null
         ? SizedBox.square(dimension: compact ? 120 : 180)
-        : FeaturedPokemon(id: _featuredId!, size: compact ? 120 : 180);
+        : FeaturedPokemon(
+            id: _featuredId!,
+            size: compact ? 120 : 180,
+            onTap: _changeFeatured,
+          );
     final logo = Column(
       mainAxisSize: MainAxisSize.min,
       children: [

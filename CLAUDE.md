@@ -112,7 +112,7 @@ SCREENSHOT_DIR=<保存先> flutter drive --driver=test_driver/integration_test.d
 
 - 画面遷移：タイトル → 設定 → クイズ → 結果、タイトル → 図鑑 → くわしいページ。ルートには `RouteNames` の名前をつける。BGM は各画面ではなく `BgmNavigatorObserver` が、一番上のルート名から切りかえる（ダイアログは無視）。新しい画面を追加したら名前と BGM の対応を足す。
 - BGM：タイトルは `Bgm.home`（昔の携帯ゲーム機風）、設定は `Bgm.title`（メニュー）、クイズは `Bgm.quiz`、図鑑は `Bgm.zukan`（オルゴールのワルツ）、結果画面は BGM なし。
-- タイトル画面は、図鑑でみつけたポケモン（0匹なら設定画面の代表9匹）から主役を1匹選び（押すと鳴き声）、背景にシルエットを漂わせる（`lib/screens/widgets/title_decorations.dart`）。ずっと動き続けるので、テストでは `pumpAndSettle` を使わない。
+- タイトル画面は、図鑑でみつけたポケモン（0匹なら設定画面の代表9匹）から主役を1匹選び（押すと別のポケモンに入れかわる）、背景にシルエットを漂わせる（`lib/screens/widgets/title_decorations.dart`）。ずっと動き続けるので、テストでは `pumpAndSettle` を使わない。
 - 動きのある演出は、iPhone の「動きを減らす」（`MediaQuery.disableAnimationsOf`）のときは出さない・止める。
 - 効果音・BGM は `tool/make_sounds.py` で合成したオリジナル音源（`assets/`）。公式の曲をまねない。作り直したら、既存の音が変わっていないことを `cmp` で確かめ、新しい音は音割れ・途切れ・つなぎ目を数字で確かめる（聞けないため）。アプリアイコンは `tool/make_icon.py` で描いた 1024px を `sips` で各サイズに縮小したもの。公式の素材は使わない。
 - 色・ボタンの形は `lib/app_theme.dart` にまとめている。
