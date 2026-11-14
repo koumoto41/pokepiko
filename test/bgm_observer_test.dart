@@ -76,6 +76,19 @@ void main() {
     await tester.pumpAndSettle();
     expect(sound.playing, Bgm.quiz);
 
+    // 図鑑は専用の曲
+    navigator.push(page(RouteNames.zukan));
+    await tester.pumpAndSettle();
+    expect(sound.playing, Bgm.zukan);
+    navigator.push(page(RouteNames.zukanDetail));
+    await tester.pumpAndSettle();
+    expect(sound.playing, Bgm.zukan);
+    navigator
+      ..pop()
+      ..pop();
+    await tester.pumpAndSettle();
+    expect(sound.playing, Bgm.quiz);
+
     navigator.pushReplacement(page(RouteNames.result));
     await tester.pumpAndSettle();
     expect(sound.playing, isNull); // 結果画面は BGM なし

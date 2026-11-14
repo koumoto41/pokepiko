@@ -86,6 +86,10 @@ class FakePokemonRepository implements PokemonRepository {
     return dexOf(id);
   }
 
+  @override
+  Future<DexEntry?> cachedDexEntry(int id) async =>
+      savedDex.contains(id) ? dexOf(id) : null;
+
   // 鳴き声のファイルは使わないので、ずっと読み込み中にしておく
   @override
   Future<File?> getCry(int id) => Completer<File?>().future;

@@ -294,9 +294,20 @@ class _EvolutionCard extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final found = ref.watch(collectionProvider).value ?? const <int>{};
+    // 進化の仲間が全員みつかったか
+    final complete = entry.evolution.every(
+      (stage) => stage.every(found.contains),
+    );
 
     return Card(
       margin: EdgeInsets.zero,
+      // そろったら、金色のふちどりで特別に見せる
+      shape: complete
+          ? RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(20),
+              side: const BorderSide(color: Colors.amber, width: 3),
+            )
+          : null,
       child: Padding(
         padding: const EdgeInsets.all(16),
         child: Column(
@@ -305,6 +316,25 @@ class _EvolutionCard extends ConsumerWidget {
               'しんか',
               style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
             ),
+            if (complete)
+              const Padding(
+                padding: EdgeInsets.only(top: 4, bottom: 4),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(Icons.emoji_events, color: Colors.amber, size: 28),
+                    SizedBox(width: 4),
+                    Text(
+                      'コンプリート！',
+                      style: TextStyle(
+                        fontSize: 20,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.deepOrange,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
             for (final (i, stage) in entry.evolution.indexed) ...[
               if (i > 0)
                 const Icon(

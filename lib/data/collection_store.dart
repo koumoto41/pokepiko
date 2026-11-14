@@ -18,6 +18,16 @@ class CollectionStore {
     };
   }
 
+  static const _announcedKey = 'collection.announcedFamilies';
+
+  /// 「しんかの なかまが そろった」とお知らせ済みの仲間（例："1,2,3"）
+  Future<Set<String>> readAnnouncedFamilies() async => {
+    ...?await _prefs.getStringList(_announcedKey),
+  };
+
+  Future<void> writeAnnouncedFamilies(Set<String> keys) =>
+      _prefs.setStringList(_announcedKey, keys.toList()..sort());
+
   // shared_preferences は数字のリストを保存できないので、文字のリストにする
   Future<void> write(Set<int> ids) => _prefs.setStringList(_key, [
     for (final id in ids.toList()..sort()) '$id',

@@ -8,6 +8,7 @@ import '../providers/collection_provider.dart';
 import '../providers/data_providers.dart';
 import 'route_names.dart';
 import 'widgets/cached_image.dart';
+import 'widgets/family_complete_dialog.dart';
 import 'zukan_detail_screen.dart';
 
 /// 図鑑の一覧：世代を選んで、その世代のポケモンを並べる
@@ -24,9 +25,30 @@ class _ZukanScreenState extends ConsumerState<ZukanScreen> {
   bool _foundOnly = false; // true：みつけたポケモンだけ並べる
 
   @override
+  void initState() {
+    super.initState();
+    // 画面が出たあとで、新しくそろった進化の仲間がいればお祝いする
+    WidgetsBinding.instance.addPostFrameCallback((_) => _announceFamilies());
+  }
+
+  Future<void> _announceFamilies() async {
+    final fresh = await takeNewlyCompletedFamilies(ref);
+    if (fresh.isEmpty || !mounted) return;
+    await showDialog<void>(
+      context: context,
+      builder: (_) => FamilyCompleteDialog(families: fresh),
+    );
+  }
+
+  @override
   Widget build(BuildContext context) {
     // 読み込み中は「まだ何もみつけていない」として表示する
     final found = ref.watch(collectionProvider).value ?? const <int>{};
+    // 進化の仲間がそろったポケモン（一覧のマスに王冠をつける）
+    final completed = <int>{
+      for (final family in ref.watch(completedFamiliesProvider).value ?? [])
+        ...family,
+    };
     // はじめは、みつけたポケモンがいる いちばん若い世代を見せる（いなければ第1世代）
     final selected =
         _generation ??
@@ -133,6 +155,7 @@ class _ZukanScreenState extends ConsumerState<ZukanScreen> {
                         itemBuilder: (context, i) => _ZukanTile(
                           id: ids[i],
                           found: found.contains(ids[i]),
+                          complete: completed.contains(ids[i]),
                         ),
                       ),
               ),
@@ -204,8 +227,13 @@ class _FoundCounter extends StatelessWidget {
 class _ZukanTile extends ConsumerWidget {
   final int id;
   final bool found;
+  final bool complete; // 進化の仲間がそろった
 
-  const _ZukanTile({required this.id, required this.found});
+  const _ZukanTile({
+    required this.id,
+    required this.found,
+    this.complete = false,
+  });
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -261,9 +289,26 @@ class _ZukanTile extends ConsumerWidget {
           child: Column(
             children: [
               Expanded(
-                child: CachedImage(
-                  url: PokeApiClient.artworkUrl(id),
-                  error: const Icon(Icons.help_outline, size: 32),
+                child: Stack(
+                  children: [
+                    Positioned.fill(
+                      child: CachedImage(
+                        url: PokeApiClient.artworkUrl(id),
+                        error: const Icon(Icons.help_outline, size: 32),
+                      ),
+                    ),
+                    // 進化の仲間がそろったら、右上に王冠
+                    if (complete)
+                      const Positioned(
+                        top: 0,
+                        right: 0,
+                        child: Icon(
+                          Icons.emoji_events,
+                          color: Colors.amber,
+                          size: 20,
+                        ),
+                      ),
+                  ],
                 ),
               ),
               number,

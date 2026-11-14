@@ -167,6 +167,43 @@ def make_quiz_bgm():
     return render_song(melody, bass, eighth=60 / 140 / 2, hat=True)
 
 
+def make_zukan_bgm():
+    """図鑑の画面：オルゴールのような音の、ゆったりしたワルツ（ヘ長調・3拍子・8小節ループ）"""
+    beat = 0.6  # 4分音符1つ（3拍で1小節）
+    bars = 8
+    buf = [0.0] * int(round(bars * 3 * beat * RATE))
+    # 小節ごとのメロディ（3拍。'-' はのばす）
+    melody = [
+        "A5 C6 A5", "G5 - E5", "F5 A5 D6", "C6 - -",
+        "D6 C6 A#5", "A5 F5 A5", "G5 E5 G5", "F5 - -",
+    ]
+    # 小節ごとの和音（1拍目にベース、2・3拍目に和音を小さく）
+    chords = [
+        ("F3", ["A4", "C5"]), ("C3", ["G4", "C5"]), ("D3", ["F4", "A4"]),
+        ("C3", ["E4", "G4"]), ("A#2", ["D5", "F4"]), ("F3", ["A4", "C5"]),
+        ("C3", ["E4", "A#4"]), ("F3", ["A4", "C5"]),
+    ]
+    steps = [n for bar in melody for n in bar.split()]
+    i = 0
+    while i < len(steps):
+        length = 1
+        while i + length < len(steps) and steps[i + length] == "-":
+            length += 1
+        # オルゴールは「ポーン」と鳴って消えていく音なので decay をつける
+        tone(buf, i * beat, length * beat, freq(steps[i]), 0.35, bell,
+             attack=0.005, decay=1.2, release=0.4, loop=True)
+        i += length
+    for b, (bass, chord) in enumerate(chords):
+        start = b * 3 * beat
+        tone(buf, start, 2.6 * beat, freq(bass), 0.3, triangle,
+             attack=0.01, release=0.2, loop=True)
+        for k in (1, 2):
+            for n in chord:
+                tone(buf, start + k * beat, 0.8 * beat, freq(n), 0.08, bell,
+                     attack=0.005, decay=3, release=0.2, loop=True)
+    return buf
+
+
 # ---------------------------------------------------------------
 # 結果画面のジングル（正解数の段ごとに1曲。くり返さず1回だけ鳴らす）
 # ---------------------------------------------------------------
@@ -309,6 +346,7 @@ if __name__ == "__main__":
     save(out / "se" / "wrong.wav", make_wrong())
     save(out / "bgm" / "title.wav", make_title_bgm(), peak=0.6)
     save(out / "bgm" / "quiz.wav", make_quiz_bgm(), peak=0.6)
+    save(out / "bgm" / "zukan.wav", make_zukan_bgm(), peak=0.6)
     save(out / "se" / "result_perfect.wav", make_result_perfect(), peak=0.85)
     save(out / "se" / "result_great.wav", make_result_great(), peak=0.7)
     save(out / "se" / "result_good.wav", make_result_good(), peak=0.7)

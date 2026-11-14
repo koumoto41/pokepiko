@@ -19,8 +19,8 @@ class BgmNavigatorObserver extends NavigatorObserver {
     RouteNames.title: Bgm.title,
     RouteNames.settings: Bgm.title,
     RouteNames.quiz: Bgm.quiz,
-    RouteNames.zukan: Bgm.title, // 図鑑はタイトルと同じゆったりした曲
-    RouteNames.zukanDetail: Bgm.title,
+    RouteNames.zukan: Bgm.zukan, // 図鑑は専用の曲
+    RouteNames.zukanDetail: Bgm.zukan,
     // 結果画面は BGM なし
   };
 
