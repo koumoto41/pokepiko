@@ -18,6 +18,8 @@ class ChoiceButton extends StatefulWidget {
   final ChoiceLook look;
   final VoidCallback? onPressed; // null だと押せない
   final double height;
+  // true: 正解のボタンも緑にせず、もとの色のまま〇をつける（タイプの色を見せたいとき）
+  final bool keepColorWhenCorrect;
 
   const ChoiceButton({
     super.key,
@@ -26,6 +28,7 @@ class ChoiceButton extends StatefulWidget {
     this.look = ChoiceLook.normal,
     this.onPressed,
     this.height = 68,
+    this.keepColorWhenCorrect = false,
   });
 
   @override
@@ -43,7 +46,10 @@ class _ChoiceButtonState extends State<ChoiceButton> {
   Widget build(BuildContext context) {
     final (color, icon) = switch (widget.look) {
       ChoiceLook.normal => (widget.color, null),
-      ChoiceLook.correct => (AppColors.correct, Icons.circle_outlined),
+      ChoiceLook.correct => (
+        widget.keepColorWhenCorrect ? widget.color : AppColors.correct,
+        Icons.circle_outlined,
+      ),
       ChoiceLook.wrong => (AppColors.wrong, Icons.close),
       ChoiceLook.faded => (widget.color, null),
     };

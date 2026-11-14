@@ -7,6 +7,7 @@ import 'package:pokepiko/models/quiz_settings.dart';
 import 'package:pokepiko/providers/data_providers.dart';
 import 'package:pokepiko/providers/high_score_provider.dart';
 import 'package:pokepiko/providers/quiz_controller.dart';
+import 'package:pokepiko/providers/settings_provider.dart';
 import 'package:pokepiko/providers/sound_provider.dart';
 import 'package:pokepiko/screens/quiz_screen.dart';
 import 'package:pokepiko/screens/result_screen.dart';
@@ -14,6 +15,8 @@ import 'package:pokepiko/screens/settings_screen.dart';
 import 'package:pokepiko/screens/title_screen.dart';
 import 'package:pokepiko/screens/widgets/answer_effect.dart';
 import 'package:pokepiko/screens/widgets/choice_button.dart';
+import 'package:pokepiko/screens/widgets/image_choice.dart';
+import 'package:pokepiko/screens/widgets/type_badge.dart';
 
 import 'bgm_observer_test.dart' show FakeSoundService;
 import 'fakes.dart';
@@ -26,16 +29,19 @@ void main() {
     'iPhone 18 Pro Max': Size(440, 956),
   };
 
-  Widget app(Widget home) => ProviderScope(
-    overrides: [
-      pokemonRepositoryProvider.overrideWithValue(
-        FakePokemonRepository()..imagesFail = true,
-      ),
-      soundServiceProvider.overrideWithValue(FakeSoundService()),
-      highScoreStoreProvider.overrideWithValue(FakeHighScoreStore()),
-    ],
-    child: MaterialApp(theme: buildAppTheme(), home: home),
-  );
+  /// settings：はじめの設定（クイズの種類などを変えたいとき）
+  Widget app(Widget home, {QuizSettings settings = const QuizSettings()}) =>
+      ProviderScope(
+        overrides: [
+          initialSettingsProvider.overrideWithValue(settings),
+          pokemonRepositoryProvider.overrideWithValue(
+            FakePokemonRepository()..imagesFail = true,
+          ),
+          soundServiceProvider.overrideWithValue(FakeSoundService()),
+          highScoreStoreProvider.overrideWithValue(FakeHighScoreStore()),
+        ],
+        child: MaterialApp(theme: buildAppTheme(), home: home),
+      );
 
   void setSize(WidgetTester tester, Size size) {
     tester.view.physicalSize = size;
@@ -57,7 +63,7 @@ void main() {
       final container = ProviderScope.containerOf(
         tester.element(find.byType(QuizScreen)),
       );
-      final answer = container.read(quizControllerProvider).current!.answer;
+      final answer = container.read(quizControllerProvider).current!.pokemon;
       await tester.tap(find.text(answer.name));
       await tester.pump();
 
@@ -85,12 +91,18 @@ void main() {
         await tester.pumpWidget(
           app(
             ResultScreen(
+              // タイプクイズのときは、カードにタイプも出る
+              variant: QuizVariant.pokemonToType,
               mode: QuizMode.illustration,
               correctCount: 10 - wrong,
               total: 10,
               wrongPokemons: [
                 for (var i = 0; i < wrong; i++)
-                  Pokemon(id: i + 1, name: 'ポケモン${i + 1}'),
+                  Pokemon(
+                    id: i + 1,
+                    name: 'ポケモン${i + 1}',
+                    types: FakePokemonRepository.typesOf(i + 1),
+                  ),
               ],
             ),
           ),
@@ -102,6 +114,76 @@ void main() {
   }
 
   for (final MapEntry(key: name, value: size) in sizes.entries) {
+    testWidgets('$name: ポケモン→タイプ（タイプの色のボタンで答える）', (tester) async {
+      setSize(tester, size);
+      await tester.pumpWidget(
+        app(
+          const QuizScreen(),
+          settings: const QuizSettings(kind: QuizKind.type),
+        ),
+      );
+      await tester.pump();
+      await tester.pump();
+      expect(find.text('このポケモンの タイプは？'), findsOneWidget);
+
+      final container = ProviderScope.containerOf(
+        tester.element(find.byType(QuizScreen)),
+      );
+      final q = container.read(quizControllerProvider).current!;
+      final buttons = tester
+          .widgetList<ChoiceButton>(find.byType(ChoiceButton))
+          .toList();
+      // ボタンの文字と色は、そのタイプの日本語名と色
+      for (final (i, t) in q.typeChoices.indexed) {
+        expect(buttons[i].label, t.label);
+        expect(buttons[i].color, t.color);
+      }
+
+      await tester.tap(find.text(q.typeChoices[q.correctIndex].label));
+      await tester.pump();
+      expect(container.read(quizControllerProvider).isCorrect, isTrue);
+      expect(find.byType(AnswerEffect), findsOneWidget);
+      await tester.pumpWidget(const SizedBox());
+    });
+
+    testWidgets('$name: タイプ→ポケモン（4匹の絵から選ぶ）', (tester) async {
+      setSize(tester, size);
+      await tester.pumpWidget(
+        app(
+          const QuizScreen(),
+          settings: const QuizSettings(
+            kind: QuizKind.type,
+            typeDirection: TypeDirection.typeToPokemon,
+          ),
+        ),
+      );
+      await tester.pump();
+      await tester.pump();
+      expect(find.text('このタイプの ポケモンは？'), findsOneWidget);
+      expect(find.byType(ImageChoice), findsNWidgets(4));
+
+      final container = ProviderScope.containerOf(
+        tester.element(find.byType(QuizScreen)),
+      );
+      final q = container.read(quizControllerProvider).current!;
+      // 聞いているタイプが、大きなラベルで出ている
+      expect(
+        tester.widget<TypeBadge>(find.byType(TypeBadge)).type,
+        q.askedType,
+      );
+      // 答える前は名前を出さない（絵だけで選ぶ）
+      expect(find.text(q.pokemon.name), findsNothing);
+
+      // まちがいの絵を押す
+      final wrong = (q.correctIndex + 1) % 4;
+      await tester.tap(find.byType(ImageChoice).at(wrong));
+      await tester.pump();
+      expect(container.read(quizControllerProvider).isCorrect, isFalse);
+      // 答えたあとは、正解の名前が絵の下とメッセージに出る
+      expect(find.textContaining(q.pokemon.name), findsWidgets);
+      await tester.pumpWidget(const SizedBox());
+    });
+
     testWidgets('$name: タイトル画面・設定画面', (tester) async {
       setSize(tester, size);
       await tester.pumpWidget(app(const TitleScreen()));
@@ -112,6 +194,12 @@ void main() {
       await tester.pumpWidget(app(const SettingsScreen()));
       await tester.pumpAndSettle();
       expect(find.text('スタート！'), findsOneWidget);
+      // なまえクイズのときは、問題の向きの段は出ない
+      expect(find.text('ポケモン→タイプ'), findsNothing);
+      await tester.tap(find.text('タイプクイズ'));
+      await tester.pumpAndSettle();
+      expect(find.text('ポケモン→タイプ'), findsOneWidget);
+      expect(find.text('タイプ→ポケモン'), findsOneWidget);
     });
   }
 

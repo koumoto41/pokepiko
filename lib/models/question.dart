@@ -1,9 +1,34 @@
+import 'poke_type.dart';
 import 'pokemon.dart';
+import 'quiz_settings.dart';
 
-/// 1問分のデータ（正解1匹＋選択肢4つ）
+/// 1問分のデータ
+/// クイズの種類によって、選択肢が「ポケモン」か「タイプ」かが変わる
+/// - なまえクイズ    ：pokemon を見せて、pokemonChoices（名前）から選ぶ
+/// - ポケモン→タイプ ：pokemon を見せて、typeChoices から選ぶ
+/// - タイプ→ポケモン ：askedType を見せて、pokemonChoices（絵）から選ぶ
 class Question {
-  final Pokemon answer; // 正解
-  final List<Pokemon> choices; // 選択肢（正解を含む4匹、シャッフル済み）
+  final QuizVariant variant;
 
-  const Question({required this.answer, required this.choices});
+  /// 主役のポケモン（なまえ・ポケモン→タイプでは見せるポケモン、
+  /// タイプ→ポケモンでは正解のポケモン）。結果画面の「おぼえてね！」にも出す
+  final Pokemon pokemon;
+
+  final List<Pokemon> pokemonChoices; // 選択肢がポケモンのとき（4匹）
+  final List<PokeType> typeChoices; // 選択肢がタイプのとき（4つ）
+  final PokeType? askedType; // タイプ→ポケモンで聞くタイプ
+  final int correctIndex; // 選択肢のうち、正解の位置（0〜3）
+
+  const Question({
+    required this.variant,
+    required this.pokemon,
+    required this.correctIndex,
+    this.pokemonChoices = const [],
+    this.typeChoices = const [],
+    this.askedType,
+  });
+
+  /// 選択肢の数
+  int get choiceCount =>
+      typeChoices.isNotEmpty ? typeChoices.length : pokemonChoices.length;
 }

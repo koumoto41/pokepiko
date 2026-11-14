@@ -21,6 +21,27 @@ void main() {
     expect(settings.generations, {2, 5, 9});
   });
 
+  test('クイズの種類と、タイプクイズの向きも保存される', () async {
+    await SettingsStore().write(
+      const QuizSettings(
+        kind: QuizKind.type,
+        typeDirection: TypeDirection.typeToPokemon,
+      ),
+    );
+    final settings = await SettingsStore().read();
+    expect(settings.kind, QuizKind.type);
+    expect(settings.typeDirection, TypeDirection.typeToPokemon);
+    expect(settings.variant, QuizVariant.typeToPokemon);
+  });
+
+  test('タイプクイズ追加前に保存した設定は、なまえクイズとして読む', () async {
+    final prefs = SharedPreferencesAsync();
+    await prefs.setString('settings.mode', 'pixel'); // kind は保存されていない
+    final settings = await SettingsStore().read();
+    expect(settings.mode, QuizMode.pixel);
+    expect(settings.kind, QuizKind.name);
+  });
+
   test('知らない値が保存されていたら、ふつうの設定にもどす', () async {
     final prefs = SharedPreferencesAsync();
     await prefs.setString('settings.mode', 'nazo');

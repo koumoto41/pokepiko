@@ -1,6 +1,6 @@
 import 'generation.dart';
 
-/// 出題のしかた
+/// 画像の見せかた
 enum QuizMode {
   illustration('イラスト'), // 公式イラスト
   pixel('ドット'), // ドット絵
@@ -10,22 +10,70 @@ enum QuizMode {
   const QuizMode(this.label);
 }
 
+/// クイズの種類
+enum QuizKind {
+  name('なまえ'), // ポケモンの名前を当てる
+  type('タイプ'); // ポケモンのタイプを当てる
+
+  final String label;
+  const QuizKind(this.label);
+}
+
+/// タイプクイズの向き
+enum TypeDirection {
+  pokemonToType('ポケモン→タイプ'), // ポケモンを見て、タイプを選ぶ
+  typeToPokemon('タイプ→ポケモン'); // タイプを見て、ポケモンを選ぶ
+
+  final String label;
+  const TypeDirection(this.label);
+}
+
+/// 実際に遊ぶクイズ（種類と向きの組み合わせ）。ハイスコアもこれごとに記録する
+enum QuizVariant {
+  name('なまえ'),
+  pokemonToType('ポケモン→タイプ'),
+  typeToPokemon('タイプ→ポケモン');
+
+  final String label;
+  const QuizVariant(this.label);
+}
+
 /// ゲームの設定
 class QuizSettings {
   final QuizMode mode;
   final Set<int> generations; // 出題する世代の番号（1〜9、複数えらべる）
+  final QuizKind kind;
+  final TypeDirection typeDirection; // タイプクイズのときだけ使う
 
   const QuizSettings({
     this.mode = QuizMode.illustration,
     this.generations = const {1},
+    this.kind = QuizKind.name,
+    this.typeDirection = TypeDirection.pokemonToType,
   });
 
-  QuizSettings copyWith({QuizMode? mode, Set<int>? generations}) {
+  QuizSettings copyWith({
+    QuizMode? mode,
+    Set<int>? generations,
+    QuizKind? kind,
+    TypeDirection? typeDirection,
+  }) {
     return QuizSettings(
       mode: mode ?? this.mode,
       generations: generations ?? this.generations,
+      kind: kind ?? this.kind,
+      typeDirection: typeDirection ?? this.typeDirection,
     );
   }
+
+  /// いまの設定で遊ぶクイズ
+  QuizVariant get variant => switch (kind) {
+    QuizKind.name => QuizVariant.name,
+    QuizKind.type => switch (typeDirection) {
+      TypeDirection.pokemonToType => QuizVariant.pokemonToType,
+      TypeDirection.typeToPokemon => QuizVariant.typeToPokemon,
+    },
+  };
 
   /// 選んだ世代に含まれる図鑑番号をすべて並べたもの（出題の候補）
   List<int> get candidateIds => [

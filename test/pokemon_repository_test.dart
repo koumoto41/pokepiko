@@ -7,6 +7,7 @@ import 'package:http/testing.dart';
 import 'package:pokepiko/data/cache_store.dart';
 import 'package:pokepiko/data/poke_api_client.dart';
 import 'package:pokepiko/data/pokemon_repository.dart';
+import 'package:pokepiko/models/poke_type.dart';
 
 /// 本物のファイル保存（一時フォルダ）＋ 偽のサーバーでテストする
 void main() {
@@ -45,6 +46,12 @@ void main() {
                 },
               },
             },
+            'types': [
+              {
+                'slot': 1,
+                'type': {'name': 'electric'},
+              },
+            ],
           };
     return http.Response.bytes(utf8.encode(jsonEncode(body)), 200);
   });
@@ -114,5 +121,25 @@ void main() {
     ]);
     expect(requestCount, count + 1);
     expect(files[0].path, files[1].path);
+  });
+
+  test('タイプが入っていない古い保存データは、APIから取り直す（画像は取り直さない）', () async {
+    // 1回目：ふつうに取って、画像まで保存する
+    final first = newRepository();
+    await first.downloadImages(await first.getPokemon(25));
+
+    // タイプクイズ追加前の形（types なし）で保存されていたことにする
+    final file = File('${tempDir.path}/cache/pokemon/25.json');
+    final json = jsonDecode(await file.readAsString()) as Map<String, dynamic>
+      ..remove('types');
+    await file.writeAsString(jsonEncode(json));
+
+    final count = requestCount;
+    final repo = newRepository();
+    final pikachu = await repo.getPokemon(25);
+    expect(pikachu.types, [PokeType.electric]);
+    expect(requestCount, count + 2); // species と pokemon の2回だけ
+    await repo.downloadImages(pikachu);
+    expect(requestCount, count + 2); // 画像は保存済みなので取らない
   });
 }
