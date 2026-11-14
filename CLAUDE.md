@@ -44,10 +44,14 @@ iPhone SE（第3世代）のシミュレーターは ID `B0AA6DCC-29B3-4D75-BE70
 SCREENSHOT_DIR=<保存先> flutter drive --driver=test_driver/integration_test.dart --target=integration_test/screenshot_test.dart -d B0AA6DCC-29B3-4D75-BE70-111FF69E85A0
 ```
 
-- `screenshot_test.dart`（なまえクイズ）と `screenshot_type_quiz_test.dart`（タイプクイズ）がある。本物の PokéAPI を使う。
+- `integration_test/screenshot_*_test.dart` がある（なまえクイズ・タイプクイズ・図鑑・進化のお祝い・全問正解・タイトル）。本物の PokéAPI を使う。
+- 大きい画面の確認は iPhone 18 Pro Max（ID `1D0DE787-1E81-4FF4-9346-47D35B2959A6`）。ユーザーが iPhone 18 Pro を使っていることがあるので、そちらでは撮らない。
+- 音が鳴るかは聞けないので、`AudioPlayer` で `AssetSource` を再生して `state == playing` と長さ（`getDuration`）を確かめる。鳴き声は `SoLoud` で `loadFile` → `play` して確かめる。
 - 初回ビルドは数分かかるので、バックグラウンドで実行してログをファイルに残す。
 - `flutter drive` は終了時にシミュレーターからアプリを削除する。ただし shared_preferences の保存データ（設定・ハイスコア・図鑑の記録など）は、次の実行に残ることがある。まっさらな状態を前提にしたテストを書かない。
 - 画面の切りかわりアニメーション中のタップは無視されるので、遷移のあとは `wait` を入れてから押す。
+- 終わるときは、BGM を `stopBgm()` してから `pumpWidget(SizedBox())` で画面を片づける。鳴り続ける BGM（audioplayers の再生位置の見張り）や動き続けるアニメーションが残ると「An animation is still running」で失敗する。
+- 一覧の下のほうなど画面に出ていないものは見つからない。`dragUntilVisible` で見えるところまで動かしてから押す。
 
 ## アーキテクチャ
 
@@ -89,10 +93,28 @@ SCREENSHOT_DIR=<保存先> flutter drive --driver=test_driver/integration_test.d
 - `SettingsStore`：前回の設定。`main()` で `runApp` の前に読み、`initialSettingsProvider` を override して渡す。知らない値は既定値に戻す。
 - `HighScoreStore`：`(QuizVariant, QuizMode)` ごとの最高正解数。なまえクイズは、タイプクイズ追加前と同じキー `highScore.<mode>` を使って記録を引き継いでいる。キーを変えるときは、以前のキーも読めるようにする。
 
+### 図鑑（`lib/screens/zukan_screen.dart`, `zukan_detail_screen.dart`）
+
+- 図鑑に入る（「みつけた」になる）のは、画像の見せかたがシルエットのクイズで正解したときだけ（`QuizController._collects`）。記録は `CollectionStore`（キー `collection.silhouette`）。以前のキー `collection.found` は読むときに消す。
+- 図鑑データ（分類・説明文・高さ・重さ・鳴き声 URL・進化）は `DexEntry`。`cache/dex/{id}.json` にクイズ用とは別に保存する。正解したときと、設定画面の一括ダウンロードのときに `downloadDex` で保存しておき、オフラインでも見られるようにする。
+- 第9世代は PokéAPI に日本語の説明文がない（null のときは「せつめいは まだ ないよ」）。説明文は「ひらがな（ja-hrkt）／かんじ（ja）」を切りかえられ、`QuizSettings.dexKanji` に保存する。
+- 進化は段階ごとの図鑑番号（`[[172], [25], [26]]`。枝分かれは同じ段に並べる）。`PokeApiClient` は進化のつながりを URL ごとに使い回す。
+- 進化の仲間（2匹以上）が全員みつかったら、図鑑を開いたときにお祝いする（`completedFamiliesProvider` → `takeNewlyCompletedFamilies`）。判定は保存済みの図鑑データだけを使う（`cachedDexEntry`。オフラインで遅くならないように）。お知らせ済みは `collection.announcedFamilies` に記録し、同じ仲間は1回だけ。
+- 鳴き声は PokéAPI では OGG（一部は拡張子が .ogg で中身が MP3）。iOS の標準機能（audioplayers）では OGG を再生できないので、鳴き声だけ `flutter_soloud`（5.2.2 に固定）の `CryPlayer` で鳴らす。
+
+### 結果画面（`lib/screens/result_screen.dart`）
+
+- `ResultRank`（全問／8割以上／5割以上／それ以外）が、星の数・ほめ言葉・鳴らす曲をまとめて持つ。星は最低でも1つ、0〜4問の曲も悲しくしない。
+- 曲は `SoundService.playJingle` で1回だけ鳴らす（BGM とは別の再生係）。`playBgm` のときに止まるので、ほかの画面に移ると止まる。
+- 全問正解のときだけ、`Celebration`（花火と風船、`CustomPainter`、約8秒）を重ねる。`IgnorePointer` で下のボタンは押せる。
+
 ### 画面と音
 
-- 画面遷移：タイトル → 設定 → クイズ → 結果。ルートには `RouteNames` の名前をつける。BGM は各画面ではなく `BgmNavigatorObserver` が、一番上のルート名から切りかえる（ダイアログは無視）。新しい画面を追加したら名前と BGM の対応を足す。
-- 効果音・BGM は `tool/make_sounds.py` で合成したオリジナル音源（`assets/`）。アプリアイコンは `tool/make_icon.py` で描いた 1024px を `sips` で各サイズに縮小したもの。公式の素材は使わない。
+- 画面遷移：タイトル → 設定 → クイズ → 結果、タイトル → 図鑑 → くわしいページ。ルートには `RouteNames` の名前をつける。BGM は各画面ではなく `BgmNavigatorObserver` が、一番上のルート名から切りかえる（ダイアログは無視）。新しい画面を追加したら名前と BGM の対応を足す。
+- BGM：タイトルは `Bgm.home`（昔の携帯ゲーム機風）、設定は `Bgm.title`（メニュー）、クイズは `Bgm.quiz`、図鑑は `Bgm.zukan`（オルゴールのワルツ）、結果画面は BGM なし。
+- タイトル画面は、図鑑でみつけたポケモン（0匹なら設定画面の代表9匹）から主役を1匹選び（押すと鳴き声）、背景にシルエットを漂わせる（`lib/screens/widgets/title_decorations.dart`）。ずっと動き続けるので、テストでは `pumpAndSettle` を使わない。
+- 動きのある演出は、iPhone の「動きを減らす」（`MediaQuery.disableAnimationsOf`）のときは出さない・止める。
+- 効果音・BGM は `tool/make_sounds.py` で合成したオリジナル音源（`assets/`）。公式の曲をまねない。作り直したら、既存の音が変わっていないことを `cmp` で確かめ、新しい音は音割れ・途切れ・つなぎ目を数字で確かめる（聞けないため）。アプリアイコンは `tool/make_icon.py` で描いた 1024px を `sips` で各サイズに縮小したもの。公式の素材は使わない。
 - 色・ボタンの形は `lib/app_theme.dart` にまとめている。
 - iPhone SE 対応：縦が短い画面では `context.isCompactHeight` でボタンや余白を小さくする。文字の拡大は 1.2 倍までに制限している（`main.dart` の `builder`）。画面を変えたら SE サイズで切れていないか確かめる。
 - 子ども向けなので、画面の文言はひらがな中心にする。ポケモン名はカタカナ。
@@ -100,6 +122,8 @@ SCREENSHOT_DIR=<保存先> flutter drive --driver=test_driver/integration_test.d
 ## テスト
 
 - `test/flutter_test_config.dart` が全テストで shared_preferences をメモリ上のものに差し替える。
-- 通信・ファイルを使うものは Provider を override して偽物に差し替える（`test/fakes.dart` の `FakePokemonRepository`。図鑑番号から決まった名前・タイプを作り、`online` / `saved` / `savedImages` でオフラインを再現できる）。
+- 通信・ファイルを使うものは Provider を override して偽物に差し替える（`test/fakes.dart` の `FakePokemonRepository`。図鑑番号から決まった名前・タイプ・図鑑データ（番号 n は n → n+1 に進化）を作り、`online` / `saved` / `savedImages` / `savedDex` でオフラインを再現できる）。
+- 音を鳴らす画面のテストは `soundServiceProvider` を `FakeSoundService`（`test/bgm_observer_test.dart`）に差し替える。本物の audioplayers はテストでは動かない。
+- 本物の PokéAPI と同じ形の返事は `test/api_fixtures.dart` にまとめている。
 - タイマーを含むテストは `testWidgets` の中で書くと時間がにせものになり、`tester.pump(Duration)` で30秒も一瞬で進められる。テストの最後に `container.dispose()` してタイマーを止める。
 - `test/screens_layout_test.dart` は iPhone SE と大きい iPhone の2サイズで、各画面がはみ出さないことを確かめる。

@@ -66,11 +66,11 @@ void main() {
 
   testWidgets('画面に合わせて BGM が切りかわる', (tester) async {
     await pumpApp(tester);
-    expect(sound.playing, Bgm.title); // タイトル
+    expect(sound.playing, Bgm.home); // タイトル（ピコピコした曲）
 
     navigator.push(page(RouteNames.settings));
     await tester.pumpAndSettle();
-    expect(sound.playing, Bgm.title); // 設定もタイトルと同じ曲
+    expect(sound.playing, Bgm.title); // 設定はメニューの曲
 
     navigator.push(page(RouteNames.quiz));
     await tester.pumpAndSettle();

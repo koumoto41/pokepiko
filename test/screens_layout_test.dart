@@ -187,7 +187,9 @@ void main() {
     testWidgets('$name: タイトル画面・設定画面', (tester) async {
       setSize(tester, size);
       await tester.pumpWidget(app(const TitleScreen()));
-      await tester.pumpAndSettle();
+      // タイトル画面はずっと動き続けるので、決まった時間だけ進める
+      await tester.pump(const Duration(seconds: 1));
+      await tester.pump(const Duration(seconds: 1));
       expect(find.text('はじめる'), findsOneWidget);
       expect(find.text('ハイスコア'), findsOneWidget);
 

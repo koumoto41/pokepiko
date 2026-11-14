@@ -205,6 +205,139 @@ def make_zukan_bgm():
 
 
 # ---------------------------------------------------------------
+# タイトル画面：昔の携帯ゲーム機のような「ピコピコ」した曲（チップチューン風）
+# ---------------------------------------------------------------
+
+TABLE = 2048  # 波の形を、この数の点で1周期ぶん表にしておく
+
+
+def pulse_table(duty, harmonics=24):
+    """パルス波（細い矩形波）の表。倍音の数をしぼって、耳に痛い雑音を出にくくする
+    duty：1周期のうち「上」にいる割合（0.125 や 0.25 が昔のゲーム機らしい音）"""
+    table = []
+    for i in range(TABLE):
+        x = i / TABLE
+        v = sum(math.sin(math.pi * k * duty) / k
+                * math.cos(2 * math.pi * k * (x - duty / 2))
+                for k in range(1, harmonics + 1))
+        table.append(v)
+    m = max(abs(v) for v in table)
+    return [v / m for v in table]
+
+
+def wave_table():
+    """ベース用：16段階の階段になった三角波（昔のゲーム機の「波形メモリ音源」風）"""
+    return [round(triangle(i / TABLE) * 7.5) / 7.5 for i in range(TABLE)]
+
+
+def chip(buf, start, dur, f, vol, table, loop=True):
+    """表を読み出して1音鳴らす。鳴りはじめが少し強く、すぐ一定の大きさになる"""
+    n = int(dur * RATE)
+    s0 = int(start * RATE)
+    step = f * TABLE / RATE
+    phase = 0.0
+    for i in range(n):
+        t = i / RATE
+        env = 0.75 + 0.25 * math.exp(-t * 12)  # 鳴りはじめだけ少し強い
+        if i > n - 200:  # 最後はプツッと鳴らないよう、短く消す
+            env *= (n - i) / 200
+        idx = s0 + i
+        if loop:
+            idx %= len(buf)
+        elif idx >= len(buf):
+            break
+        buf[idx] += vol * env * table[int(phase) % TABLE]
+        phase += step
+
+
+def chip_noise(buf, start, length, vol, seed, loop=True):
+    """ドラム用のノイズ（ハイハット・スネア）"""
+    rnd = random.Random(seed)
+    s0 = int(start * RATE)
+    n = int(length * RATE)
+    held = 0.0
+    for i in range(n):
+        if i % 3 == 0:  # 少し粗いノイズにして、昔のゲーム機らしく
+            held = rnd.uniform(-1, 1)
+        idx = s0 + i
+        if loop:
+            idx %= len(buf)
+        buf[idx] += vol * (1 - i / n) ** 2 * held
+
+
+def chip_kick(buf, start, vol, loop=True):
+    """バスドラム：音程が急に下がる短い音"""
+    s0 = int(start * RATE)
+    phase = 0.0
+    for i in range(int(0.12 * RATE)):
+        t = i / RATE
+        phase += (55 + 180 * math.exp(-t * 40)) / RATE
+        idx = (s0 + i) % len(buf) if loop else s0 + i
+        buf[idx] += vol * math.exp(-t * 25) * (1 if (phase % 1) < 0.5 else -1)
+
+
+def make_home_bgm():
+    """タイトル画面：冒険に出かけるような、わくわくする曲（ニ長調・150BPM・16小節ループ）"""
+    eighth = 60 / 150 / 2
+    bars = 16
+    buf = [0.0] * int(round(bars * 8 * eighth * RATE))
+    lead = pulse_table(0.25)
+    harmony = pulse_table(0.125)
+    bass = wave_table()
+
+    melody = [
+        "D5 - A4 D5 F#5 - E5 D5", "E5 - F#5 - A5 - - -",
+        "B5 - A5 G5 F#5 - G5 A5", "E5 - - - . E5 F#5 G5",
+        "F#5 - D5 F#5 B5 - A5 F#5", "G5 - F#5 - E5 - D5 -",
+        "E5 G#5 B5 - G#5 - E5 F#5", "A5 - - - A4 C#5 E5 G5",
+        "F#5 - D5 F#5 A5 - F#5 A5", "D6 - C#6 - B5 - A5 -",
+        "B5 - G5 B5 D6 - B5 G5", "A5 - E5 - C#5 - A4 -",
+        "B4 D5 F#5 - B5 - A5 -", "G5 - B5 - D6 - B5 -",
+        "A5 - G5 - F#5 - E5 -", "D5 - - - A4 - C#5 -",
+    ]
+    # 小節ごとの和音（根音と、伴奏の2音）
+    chords = [
+        ("D", ["F#4", "A4"]), ("D", ["F#4", "A4"]), ("G", ["G4", "B4"]),
+        ("A", ["E4", "A4"]), ("B", ["F#4", "B4"]), ("G", ["G4", "B4"]),
+        ("E", ["G#4", "B4"]), ("A", ["E4", "C#5"]), ("D", ["F#4", "A4"]),
+        ("D", ["F#4", "A4"]), ("G", ["G4", "B4"]), ("A", ["E4", "C#5"]),
+        ("B", ["F#4", "B4"]), ("G", ["G4", "B4"]), ("A", ["E4", "C#5"]),
+        ("D", ["F#4", "A4"]),
+    ]
+
+    # メロディ（'-' はのばす、'.' は休み）
+    steps = [n for bar in melody for n in bar.split()]
+    i = 0
+    while i < len(steps):
+        length = 1
+        while i + length < len(steps) and steps[i + length] == "-":
+            length += 1
+        if steps[i] not in ("-", "."):
+            chip(buf, i * eighth, length * eighth * 0.92, freq(steps[i]), 0.22, lead)
+        i += length
+
+    for b, (root, pair) in enumerate(chords):
+        bar = b * 8 * eighth
+        # 伴奏：4分音符で和音の2音を交互に（細い音で小さめ）
+        for q in range(4):
+            chip(buf, bar + q * 2 * eighth, eighth * 1.6, freq(pair[q % 2]), 0.10, harmony)
+        # ベース：8分音符で、根音と1オクターブ上を行ったり来たり
+        low = "B2" if root == "B" else root + "3"
+        high = "B3" if root == "B" else root + "4"
+        for e in range(8):
+            chip(buf, bar + e * eighth, eighth * 0.8, freq(low if e % 2 == 0 else high), 0.28, bass)
+        # ドラム：1・3拍目にバスドラム、2・4拍目にスネア、8分でハイハット
+        for q in range(4):
+            if q % 2 == 0:
+                chip_kick(buf, bar + q * 2 * eighth, 0.25)
+            else:
+                chip_noise(buf, bar + q * 2 * eighth, 0.10, 0.22, seed=b * 4 + q)
+        for e in range(8):
+            chip_noise(buf, bar + e * eighth, 0.025, 0.06, seed=1000 + b * 8 + e)
+    return buf
+
+
+# ---------------------------------------------------------------
 # 結果画面のジングル（正解数の段ごとに1曲。くり返さず1回だけ鳴らす）
 # ---------------------------------------------------------------
 
@@ -347,6 +480,7 @@ if __name__ == "__main__":
     save(out / "bgm" / "title.wav", make_title_bgm(), peak=0.6)
     save(out / "bgm" / "quiz.wav", make_quiz_bgm(), peak=0.6)
     save(out / "bgm" / "zukan.wav", make_zukan_bgm(), peak=0.6)
+    save(out / "bgm" / "home.wav", make_home_bgm(), peak=0.6)
     save(out / "se" / "result_perfect.wav", make_result_perfect(), peak=0.85)
     save(out / "se" / "result_great.wav", make_result_great(), peak=0.7)
     save(out / "se" / "result_good.wav", make_result_good(), peak=0.7)
