@@ -44,9 +44,17 @@ void main() {
     await wait(tester, 4000); // シルエットが動いたあと
     await binding.takeScreenshot('h02_title_later');
 
-    // 主役のポケモンを押す（鳴き声）
+    // 主役のポケモンを押すと、ちがうポケモンに入れかわる
+    final before = tester
+        .widget<FeaturedPokemon>(find.byType(FeaturedPokemon))
+        .id;
     await tester.tap(find.byType(FeaturedPokemon));
-    await wait(tester, 1500);
+    await wait(tester, 2500); // 新しい絵の読み込みを待つ
+    final after = tester
+        .widget<FeaturedPokemon>(find.byType(FeaturedPokemon))
+        .id;
+    expect(after, isNot(before));
+    await binding.takeScreenshot('h03_title_after_tap');
 
     // 鳴り続けている BGM を止めてから終わる
     await ProviderScope.containerOf(

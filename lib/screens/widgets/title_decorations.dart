@@ -5,7 +5,6 @@ import 'package:material_ui/material_ui.dart';
 
 import '../../data/poke_api_client.dart';
 import '../../providers/data_providers.dart';
-import '../../providers/sound_provider.dart';
 import 'cached_image.dart';
 
 /// タイトル画面の「ポケピコ」のロゴ（白いふちどりと影で、ゲームのロゴらしく）
@@ -55,12 +54,19 @@ class TitleLogo extends StatelessWidget {
   }
 }
 
-/// 主役のポケモン：ふわふわ上下に動き、押すと鳴き声が鳴る
+/// 主役のポケモン：ふわふわ上下に動き、押すとぴょんと跳ねる
+/// （押したときに別のポケモンに変えるのは、使う側が onTap で id を変える）
 class FeaturedPokemon extends ConsumerStatefulWidget {
   final int id;
   final double size;
+  final VoidCallback? onTap;
 
-  const FeaturedPokemon({super.key, required this.id, required this.size});
+  const FeaturedPokemon({
+    super.key,
+    required this.id,
+    required this.size,
+    this.onTap,
+  });
 
   @override
   ConsumerState<FeaturedPokemon> createState() => _FeaturedPokemonState();
@@ -92,20 +98,12 @@ class _FeaturedPokemonState extends ConsumerState<FeaturedPokemon>
     super.dispose();
   }
 
-  Future<void> _onTap() async {
+  void _onTap() {
     setState(() => _jump = true);
     Future.delayed(const Duration(milliseconds: 200), () {
       if (mounted) setState(() => _jump = false);
     });
-    // await のあいだに画面が変わっても困らないよう、先に取り出しておく
-    final player = ref.read(cryPlayerProvider);
-    final repo = ref.read(pokemonRepositoryProvider);
-    try {
-      final file = await repo.getCry(widget.id);
-      if (file != null) await player.play(file);
-    } catch (_) {
-      // 鳴き声が取れなくても（オフラインなど）、何もしない
-    }
+    widget.onTap?.call();
   }
 
   @override
@@ -126,41 +124,54 @@ class _FeaturedPokemonState extends ConsumerState<FeaturedPokemon>
             ),
             child: child,
           ),
-          child: Column(
-            children: [
-              Expanded(
-                child: CachedImage(
-                  url: PokeApiClient.artworkUrl(widget.id),
-                  error: const Icon(
-                    Icons.catching_pokemon,
-                    size: 72,
-                    color: Colors.red,
-                  ),
-                ),
+          // AnimatedSwitcher：id が変わったら、前のポケモンが小さくなって消え、
+          // 新しいポケモンが大きくなって出てくる（ポンと入れかわる）
+          child: AnimatedSwitcher(
+            duration: const Duration(milliseconds: 250),
+            transitionBuilder: (child, animation) => ScaleTransition(
+              scale: CurvedAnimation(
+                parent: animation,
+                curve: Curves.easeOutBack,
               ),
-              // 名前のふだ
-              if (name != null)
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 10,
-                    vertical: 2,
-                  ),
-                  decoration: BoxDecoration(
-                    color: Colors.white.withValues(alpha: 0.85),
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: FittedBox(
-                    fit: BoxFit.scaleDown,
-                    child: Text(
-                      name,
-                      style: const TextStyle(
-                        fontSize: 14,
-                        fontWeight: FontWeight.bold,
-                      ),
+              child: child,
+            ),
+            child: Column(
+              key: ValueKey(widget.id),
+              children: [
+                Expanded(
+                  child: CachedImage(
+                    url: PokeApiClient.artworkUrl(widget.id),
+                    error: const Icon(
+                      Icons.catching_pokemon,
+                      size: 72,
+                      color: Colors.red,
                     ),
                   ),
                 ),
-            ],
+                // 名前のふだ
+                if (name != null)
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 10,
+                      vertical: 2,
+                    ),
+                    decoration: BoxDecoration(
+                      color: Colors.white.withValues(alpha: 0.85),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: FittedBox(
+                      fit: BoxFit.scaleDown,
+                      child: Text(
+                        name,
+                        style: const TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
+                  ),
+              ],
+            ),
           ),
         ),
       ),

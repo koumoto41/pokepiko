@@ -66,6 +66,11 @@ void main() {
 
     await tester.tap(find.text('No.0001'));
     await wait(tester, 2500);
+    await binding.takeScreenshot('f02b_detail_illustration');
+    // 左にスワイプして、ドット絵
+    await tester.fling(find.byType(PageView), const Offset(-300, 0), 1000);
+    await wait(tester, 1500);
+    await binding.takeScreenshot('f02c_detail_dot');
     await tester.drag(find.byType(ListView).first, const Offset(0, -900));
     await wait(tester, 1500);
     await binding.takeScreenshot('f03_detail_complete');

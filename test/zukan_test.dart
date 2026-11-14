@@ -11,6 +11,8 @@ import 'package:pokepiko/providers/quiz_controller.dart';
 import 'package:pokepiko/providers/settings_provider.dart';
 import 'package:pokepiko/providers/sound_provider.dart';
 import 'package:pokepiko/screens/zukan_detail_screen.dart';
+import 'package:pokepiko/screens/widgets/cached_image.dart';
+import 'package:pokepiko/screens/widgets/trimmed_sprite.dart';
 import 'package:pokepiko/screens/zukan_screen.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -180,6 +182,68 @@ void main() {
       await tester.pumpAndSettle();
     }
 
+    group('くわしいページの絵', () {
+      String shownUrl(WidgetTester tester) {
+        // いま画面のまん中に見えている絵の URL
+        final images = tester.widgetList<CachedImage>(find.byType(CachedImage));
+        final center = tester.getCenter(find.byType(PageView));
+        return images
+            .firstWhere(
+              (w) => tester
+                  .getRect(find.byWidget(w))
+                  .contains(Offset(center.dx, center.dy)),
+            )
+            .url;
+      }
+
+      testWidgets('イラストとドット絵を、スワイプで切りかえる', (tester) async {
+        await pumpApp(
+          tester,
+          sizes['iPhone SE']!,
+          const ZukanDetailScreen(id: 4),
+          found: {4},
+        );
+        expect(shownUrl(tester), 'https://example.com/art/4.png');
+        expect(find.text('イラスト'), findsOneWidget);
+        expect(find.text('ドット'), findsOneWidget);
+
+        // 左にスワイプすると、ドット絵（ぼかさずに表示）
+        await tester.fling(find.byType(PageView), const Offset(-300, 0), 1000);
+        await tester.pumpAndSettle();
+        // ドット絵は、余白を切りとって大きく表示する部品で出す
+        final dot = tester.widget<TrimmedSprite>(find.byType(TrimmedSprite));
+        expect(dot.url, 'https://example.com/dot/4.png');
+        expect(
+          tester
+              .getRect(find.byType(TrimmedSprite))
+              .contains(tester.getCenter(find.byType(PageView))),
+          isTrue,
+        );
+
+        // 「イラスト」を押すと、イラストに戻る
+        await tester.tap(find.text('イラスト'));
+        await tester.pumpAndSettle();
+        expect(shownUrl(tester), 'https://example.com/art/4.png');
+      });
+
+      testWidgets('ドット絵がないポケモンは、イラストだけ', (tester) async {
+        await pumpApp(
+          tester,
+          sizes['iPhone SE']!,
+          const ZukanDetailScreen(id: 7),
+          found: {7},
+        );
+        expect(find.text('ドット'), findsNothing);
+        expect(
+          find.descendant(
+            of: find.byType(PageView),
+            matching: find.byType(CachedImage),
+          ),
+          findsOneWidget,
+        );
+      });
+    });
+
     // 偽の窓口では、番号 n のポケモンは n → n+1 に進化する（4 と 5 で仲間がそろう）
     group('進化の仲間がそろったとき', () {
       testWidgets('図鑑を開くと、新しくそろった仲間をお祝いする（1回だけ）', (tester) async {
@@ -230,7 +294,12 @@ void main() {
           const ZukanDetailScreen(id: 4),
           found: {4, 5},
         );
-        await tester.ensureVisible(find.text('しんか'));
+        // 進化の欄はページの下のほうなので、見えるまでスクロールする
+        await tester.scrollUntilVisible(
+          find.text('しんか'),
+          200,
+          scrollable: find.byType(Scrollable).first,
+        );
         expect(find.text('コンプリート！'), findsOneWidget);
       });
 
