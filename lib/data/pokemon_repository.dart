@@ -51,6 +51,9 @@ class PokemonRepository {
     }();
   }
 
+  /// 保存済みの図鑑データだけを読む（無ければ null。ネットには取りにいかない）
+  Future<DexEntry?> cachedDexEntry(int id) => _cache.readDexEntry(id);
+
   /// 鳴き声の音声ファイル（無いポケモンは null）。画像と同じしくみで保存する
   Future<File?> getCry(int id) async {
     final url = (await getDexEntry(id)).cryUrl;

@@ -7,9 +7,23 @@ import 'package:pokepiko/screens/route_names.dart';
 /// 実際には鳴らさず、何を頼まれたかだけ覚える偽の音係
 class FakeSoundService implements SoundService {
   Bgm? playing; // いま流れているはずの BGM
+  String? jingle; // いま鳴っているはずの結果画面の曲
+  final jingles = <String>[]; // これまでに鳴らした結果画面の曲
 
   @override
-  Future<void> playBgm(Bgm bgm) async => playing = bgm;
+  Future<void> playBgm(Bgm bgm) async {
+    jingle = null; // 本物と同じく、BGM を流すときは結果画面の曲を止める
+    playing = bgm;
+  }
+
+  @override
+  Future<void> playJingle(String path) async {
+    jingle = path;
+    jingles.add(path);
+  }
+
+  @override
+  Future<void> stopJingle() async => jingle = null;
 
   @override
   Future<void> stopBgm() async => playing = null;
@@ -62,14 +76,30 @@ void main() {
     await tester.pumpAndSettle();
     expect(sound.playing, Bgm.quiz);
 
+    // 図鑑は専用の曲
+    navigator.push(page(RouteNames.zukan));
+    await tester.pumpAndSettle();
+    expect(sound.playing, Bgm.zukan);
+    navigator.push(page(RouteNames.zukanDetail));
+    await tester.pumpAndSettle();
+    expect(sound.playing, Bgm.zukan);
+    navigator
+      ..pop()
+      ..pop();
+    await tester.pumpAndSettle();
+    expect(sound.playing, Bgm.quiz);
+
     navigator.pushReplacement(page(RouteNames.result));
     await tester.pumpAndSettle();
     expect(sound.playing, isNull); // 結果画面は BGM なし
 
-    // 結果 →「せっていを かえる」で設定に戻ると、タイトルの曲がまた流れる
+    // 結果画面で曲が鳴っているところで……
+    await sound.playJingle('se/result_great.wav');
+    // 結果 →「せってい」で設定に戻ると、タイトルの曲がまた流れて、結果画面の曲は止まる
     navigator.pop();
     await tester.pumpAndSettle();
     expect(sound.playing, Bgm.title);
+    expect(sound.jingle, isNull);
   });
 
   testWidgets('ダイアログを開いても BGM は変わらない', (tester) async {

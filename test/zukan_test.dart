@@ -9,10 +9,12 @@ import 'package:pokepiko/providers/collection_provider.dart';
 import 'package:pokepiko/providers/data_providers.dart';
 import 'package:pokepiko/providers/quiz_controller.dart';
 import 'package:pokepiko/providers/settings_provider.dart';
+import 'package:pokepiko/providers/sound_provider.dart';
 import 'package:pokepiko/screens/zukan_detail_screen.dart';
 import 'package:pokepiko/screens/zukan_screen.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import 'bgm_observer_test.dart' show FakeSoundService;
 import 'fakes.dart';
 
 void main() {
@@ -145,12 +147,17 @@ void main() {
       'iPhone 18 Pro Max': Size(440, 956),
     };
 
+    late FakeSoundService sound;
+
+    /// savedDex：図鑑データ（進化の情報）を保存済みにしておく図鑑番号
     Future<void> pumpApp(
       WidgetTester tester,
       Size size,
       Widget home, {
       Set<int> found = const {},
+      Set<int> savedDex = const {},
     }) async {
+      sound = FakeSoundService();
       tester.view.physicalSize = size;
       tester.view.devicePixelRatio = 1;
       addTearDown(tester.view.reset);
@@ -159,8 +166,11 @@ void main() {
         ProviderScope(
           overrides: [
             pokemonRepositoryProvider.overrideWithValue(
-              FakePokemonRepository()..imagesFail = true,
+              FakePokemonRepository()
+                ..imagesFail = true
+                ..savedDex.addAll(savedDex),
             ),
+            soundServiceProvider.overrideWithValue(sound),
           ],
           child: MaterialApp(theme: buildAppTheme(), home: home),
         ),
@@ -169,6 +179,71 @@ void main() {
       await tester.runAsync(() => Future<void>.delayed(Duration.zero));
       await tester.pumpAndSettle();
     }
+
+    // 偽の窓口では、番号 n のポケモンは n → n+1 に進化する（4 と 5 で仲間がそろう）
+    group('進化の仲間がそろったとき', () {
+      testWidgets('図鑑を開くと、新しくそろった仲間をお祝いする（1回だけ）', (tester) async {
+        await pumpApp(
+          tester,
+          sizes['iPhone SE']!,
+          const ZukanScreen(),
+          found: {4, 5, 10},
+          savedDex: {4, 5, 10},
+        );
+        expect(find.text('コンプリート！'), findsOneWidget);
+        expect(find.text('しんかの なかまが\nぜんぶ そろったよ！'), findsOneWidget);
+        expect(sound.jingles, ['se/result_great.wav']);
+        await tester.tap(find.text('やったね！'));
+        await tester.pumpAndSettle();
+        expect(find.text('コンプリート！'), findsNothing);
+
+        // そろった仲間のマスには王冠がつく（10 は 11 がいないので、つかない）
+        expect(find.byIcon(Icons.emoji_events), findsNWidgets(2));
+
+        // もう一度図鑑を開いても、同じお祝いは出ない
+        await tester.pumpWidget(const SizedBox());
+        await pumpApp(
+          tester,
+          sizes['iPhone SE']!,
+          const ZukanScreen(),
+          found: {4, 5, 10},
+          savedDex: {4, 5, 10},
+        );
+        expect(find.text('コンプリート！'), findsNothing);
+        expect(sound.jingles, isEmpty);
+      });
+
+      testWidgets('進化の情報を保存していない仲間は、まだ数えない', (tester) async {
+        await pumpApp(
+          tester,
+          sizes['iPhone SE']!,
+          const ZukanScreen(),
+          found: {4, 5},
+        );
+        expect(find.text('コンプリート！'), findsNothing);
+      });
+
+      testWidgets('くわしいページの進化の欄に「コンプリート！」が出る', (tester) async {
+        await pumpApp(
+          tester,
+          sizes['iPhone SE']!,
+          const ZukanDetailScreen(id: 4),
+          found: {4, 5},
+        );
+        await tester.ensureVisible(find.text('しんか'));
+        expect(find.text('コンプリート！'), findsOneWidget);
+      });
+
+      testWidgets('仲間がそろっていなければ、くわしいページにも出ない', (tester) async {
+        await pumpApp(
+          tester,
+          sizes['iPhone SE']!,
+          const ZukanDetailScreen(id: 4),
+          found: {4},
+        );
+        expect(find.text('コンプリート！'), findsNothing);
+      });
+    });
 
     testWidgets('「みつけた だけ」をオンにすると、みつけたポケモンだけ並ぶ', (tester) async {
       await pumpApp(

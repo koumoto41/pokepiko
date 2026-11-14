@@ -4,7 +4,8 @@ import 'package:flutter/foundation.dart';
 /// BGM の種類（ファイルは assets/ からの場所）
 enum Bgm {
   title('bgm/title.wav'), // タイトル・設定画面
-  quiz('bgm/quiz.wav'); // クイズ画面
+  quiz('bgm/quiz.wav'), // クイズ画面
+  zukan('bgm/zukan.wav'); // 図鑑（オルゴールのワルツ）
 
   final String path;
   const Bgm(this.path);
@@ -17,10 +18,13 @@ class SoundService {
 
   final _bgmPlayer = AudioPlayer();
   final _sePlayer = AudioPlayer();
+  final _jinglePlayer = AudioPlayer(); // 結果画面の曲（BGM とは別にする）
   Bgm? _current; // いま流している BGM
 
   /// BGM を流す（同じ曲が流れていれば、最初に戻さずそのまま）
   Future<void> playBgm(Bgm bgm) async {
+    // 結果画面の曲が鳴っていたら止める（ほかの画面に移ったので）
+    await stopJingle();
     if (_current == bgm) return;
     _current = bgm;
     await _safely(() async {
@@ -41,6 +45,15 @@ class SoundService {
   Future<void> resumeBgm() async {
     if (_current != null) await _safely(_bgmPlayer.resume);
   }
+
+  /// 結果画面の曲を1回だけ鳴らす（くり返さない）
+  Future<void> playJingle(String path) => _safely(() async {
+    await _jinglePlayer.stop();
+    await _jinglePlayer.setReleaseMode(ReleaseMode.stop);
+    await _jinglePlayer.play(AssetSource(path));
+  });
+
+  Future<void> stopJingle() => _safely(_jinglePlayer.stop);
 
   Future<void> playCorrect() => _playSe('se/correct.wav');
 
