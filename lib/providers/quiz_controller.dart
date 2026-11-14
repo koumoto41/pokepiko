@@ -6,6 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../models/poke_type.dart';
 import '../models/pokemon.dart';
 import '../models/question.dart';
+import '../models/score.dart';
 import '../models/quiz_settings.dart';
 import 'collection_provider.dart';
 import 'data_providers.dart';
@@ -30,6 +31,9 @@ class QuizState {
   final List<Pokemon> wrongPokemons; // 間違えた問題の主役のポケモン
   final List<bool> results; // 1問ごとの結果（true = 正解）。画面上の丸の色に使う
   final List<Pokemon> newlyFound; // このゲームで、図鑑にはじめて入ったポケモン
+  final Score score; // ここまでの点数
+  final int streak; // いま何問つづけて正解しているか
+  final Score? lastPoints; // 直前の問題で取った点数（正解したときだけ。画面にぴょこっと出す）
   final String? errorMessage;
 
   const QuizState({
@@ -42,6 +46,9 @@ class QuizState {
     this.wrongPokemons = const [],
     this.results = const [],
     this.newlyFound = const [],
+    this.score = const Score(),
+    this.streak = 0,
+    this.lastPoints,
     this.errorMessage,
   });
 
@@ -58,6 +65,10 @@ class QuizState {
     List<Pokemon>? wrongPokemons,
     List<bool>? results,
     List<Pokemon>? newlyFound,
+    Score? score,
+    int? streak,
+    Score? lastPoints,
+    bool clearLastPoints = false,
     String? errorMessage,
   }) {
     return QuizState(
@@ -72,6 +83,9 @@ class QuizState {
       wrongPokemons: wrongPokemons ?? this.wrongPokemons,
       results: results ?? this.results,
       newlyFound: newlyFound ?? this.newlyFound,
+      score: score ?? this.score,
+      streak: streak ?? this.streak,
+      lastPoints: clearLastPoints ? null : (lastPoints ?? this.lastPoints),
       errorMessage: errorMessage ?? this.errorMessage,
     );
   }
@@ -135,8 +149,20 @@ class QuizController extends Notifier<QuizState> {
     _countdownTimer?.cancel();
 
     final isCorrect = index == question.correctIndex;
+    // 点数：正解なら「せいかい＋はやさ＋れんぞく」を足す。間違い・時間切れは0点で連続も切れる
+    final streak = isCorrect ? state.streak + 1 : 0;
+    final points = isCorrect
+        ? Score.forAnswer(
+            remainingSeconds: state.remainingSeconds,
+            streak: streak,
+          )
+        : null;
     state = state.copyWith(
       status: QuizStatus.answered,
+      score: points == null ? null : state.score + points,
+      streak: streak,
+      lastPoints: points,
+      clearLastPoints: points == null,
       selectedIndex: index,
       correctCount: isCorrect ? state.correctCount + 1 : null,
       wrongPokemons: isCorrect
@@ -151,7 +177,14 @@ class QuizController extends Notifier<QuizState> {
     // 1秒後に次の問題へ（最後の問題なら結果へ）
     _nextTimer = Timer(_nextDelay, () {
       if (state.questionNumber >= questionCount) {
-        state = state.copyWith(status: QuizStatus.finished);
+        // 全問正解なら、パーフェクトボーナス
+        final perfect = state.correctCount >= questionCount;
+        state = state.copyWith(
+          status: QuizStatus.finished,
+          score: perfect
+              ? state.score + const Score(perfect: Score.perfectPoints)
+              : null,
+        );
       } else {
         _showNextQuestion(_gameId);
       }

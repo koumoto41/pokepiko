@@ -91,7 +91,8 @@ SCREENSHOT_DIR=<保存先> flutter drive --driver=test_driver/integration_test.d
 ### 保存する設定・記録（shared_preferences の `SharedPreferencesAsync`）
 
 - `SettingsStore`：前回の設定。`main()` で `runApp` の前に読み、`initialSettingsProvider` を override して渡す。知らない値は既定値に戻す。
-- `HighScoreStore`：`(QuizVariant, QuizMode)` ごとの最高正解数。なまえクイズは、タイプクイズ追加前と同じキー `highScore.<mode>` を使って記録を引き継いでいる。キーを変えるときは、以前のキーも読めるようにする。
+- `HighScoreStore`：`(QuizVariant, QuizMode)` ごとの最高点（キー `score.<variant>.<mode>`）。以前は正解数を `highScore.〜` に保存していたが、点数とは比べられないので読まない（0点から集め直し）。
+- 点数の計算は `lib/models/score.dart` の `Score` にまとめている：正解100点＋はやさ（残り秒数×10、最大300）＋れんぞく（(連続数−1)×20、最大100）、全問正解でパーフェクト500点。最高点は5200点。`QuizState` が `score` / `streak` / `lastPoints` を持ち、正解すると `PointsPopup` で「+点数」を出す。結果画面の星・メッセージ・曲は、点数ではなく正解数で決める。
 
 ### 図鑑（`lib/screens/zukan_screen.dart`, `zukan_detail_screen.dart`）
 
