@@ -44,12 +44,14 @@ class QuizSettings {
   final Set<int> generations; // 出題する世代の番号（1〜9、複数えらべる）
   final QuizKind kind;
   final TypeDirection typeDirection; // タイプクイズのときだけ使う
+  final bool dexKanji; // 図鑑の説明文を漢字で出すか（false ならひらがな）
 
   const QuizSettings({
     this.mode = QuizMode.illustration,
     this.generations = const {1},
     this.kind = QuizKind.name,
     this.typeDirection = TypeDirection.pokemonToType,
+    this.dexKanji = false,
   });
 
   QuizSettings copyWith({
@@ -57,12 +59,14 @@ class QuizSettings {
     Set<int>? generations,
     QuizKind? kind,
     TypeDirection? typeDirection,
+    bool? dexKanji,
   }) {
     return QuizSettings(
       mode: mode ?? this.mode,
       generations: generations ?? this.generations,
       kind: kind ?? this.kind,
       typeDirection: typeDirection ?? this.typeDirection,
+      dexKanji: dexKanji ?? this.dexKanji,
     );
   }
 

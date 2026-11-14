@@ -35,6 +35,10 @@ class SettingsController extends Notifier<QuizSettings> {
     _update(state.copyWith(typeDirection: direction));
   }
 
+  void setDexKanji(bool kanji) {
+    _update(state.copyWith(dexKanji: kanji));
+  }
+
   /// 世代のオン・オフを切りかえる（最後の1つは外せない）
   void toggleGeneration(int number) {
     final next = {...state.generations};

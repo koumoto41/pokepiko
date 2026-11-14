@@ -18,6 +18,7 @@ class ResultScreen extends ConsumerStatefulWidget {
   final int correctCount;
   final int total;
   final List<Pokemon> wrongPokemons;
+  final int newlyFound; // このゲームで図鑑にはじめて入ったポケモンの数
 
   const ResultScreen({
     super.key,
@@ -26,6 +27,7 @@ class ResultScreen extends ConsumerStatefulWidget {
     required this.correctCount,
     required this.total,
     required this.wrongPokemons,
+    this.newlyFound = 0,
   });
 
   /// 星の数（子どもががっかりしないよう、最低でも1つ）
@@ -117,6 +119,21 @@ class _ResultScreenState extends ConsumerState<ResultScreen> {
                   ),
                   style: const TextStyle(fontSize: 22),
                 ),
+                if (widget.newlyFound > 0)
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      const Icon(Icons.menu_book, color: Colors.orange),
+                      const SizedBox(width: 4),
+                      Text(
+                        'ずかんに ${widget.newlyFound}ひき ふえたよ！',
+                        style: const TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ],
+                  ),
                 // ハイスコアを更新したら、お祝いの表示
                 FutureBuilder<bool>(
                   future: _isNewRecord,

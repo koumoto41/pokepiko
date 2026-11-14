@@ -11,6 +11,7 @@ class SettingsStore {
   static const _generationsKey = 'settings.generations';
   static const _kindKey = 'settings.kind';
   static const _typeDirectionKey = 'settings.typeDirection';
+  static const _dexKanjiKey = 'settings.dexKanji';
 
   /// 保存した設定を読む（初めてのときや、読めない値のときはふつうの設定）
   Future<QuizSettings> read() async {
@@ -19,6 +20,7 @@ class SettingsStore {
     final saved = await _prefs.getStringList(_generationsKey);
     final kindName = await _prefs.getString(_kindKey);
     final directionName = await _prefs.getString(_typeDirectionKey);
+    final dexKanji = await _prefs.getBool(_dexKanjiKey);
 
     // アプリを更新して世代やモードが変わっても困らないよう、知っている値だけ使う
     final validNumbers = {for (final g in Generation.all) g.number};
@@ -34,6 +36,7 @@ class SettingsStore {
       typeDirection:
           TypeDirection.values.asNameMap()[directionName] ??
           defaults.typeDirection,
+      dexKanji: dexKanji ?? defaults.dexKanji,
     );
   }
 
@@ -41,6 +44,7 @@ class SettingsStore {
     await _prefs.setString(_modeKey, settings.mode.name);
     await _prefs.setString(_kindKey, settings.kind.name);
     await _prefs.setString(_typeDirectionKey, settings.typeDirection.name);
+    await _prefs.setBool(_dexKanjiKey, settings.dexKanji);
     // shared_preferences は数字のリストを保存できないので、文字のリストにする
     await _prefs.setStringList(_generationsKey, [
       for (final n in settings.generations.toList()..sort()) '$n',
