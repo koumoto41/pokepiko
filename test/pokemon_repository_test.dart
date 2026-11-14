@@ -1,0 +1,118 @@
+import 'dart:convert';
+import 'dart:io';
+
+import 'package:flutter_test/flutter_test.dart';
+import 'package:http/http.dart' as http;
+import 'package:http/testing.dart';
+import 'package:pokepiko/data/cache_store.dart';
+import 'package:pokepiko/data/poke_api_client.dart';
+import 'package:pokepiko/data/pokemon_repository.dart';
+
+/// 本物のファイル保存（一時フォルダ）＋ 偽のサーバーでテストする
+void main() {
+  late Directory tempDir;
+  late int requestCount; // サーバーに何回問い合わせたか
+  late bool online;
+
+  setUp(() async {
+    tempDir = await Directory.systemTemp.createTemp('pokepiko_test');
+    requestCount = 0;
+    online = true;
+  });
+  tearDown(() => tempDir.delete(recursive: true));
+
+  final mock = MockClient((req) async {
+    if (!online) throw const SocketException('offline');
+    requestCount++;
+    final path = req.url.path;
+    if (path.endsWith('.png')) return http.Response.bytes([1, 2, 3], 200);
+    final body = path.contains('pokemon-species')
+        ? {
+            'name': 'pikachu',
+            'names': [
+              {
+                'language': {'name': 'ja-hrkt'},
+                'name': 'ピカチュウ',
+              },
+            ],
+          }
+        : {
+            'sprites': {
+              'front_default': 'https://example.com/sprites/pokemon/25.png',
+              'other': {
+                'official-artwork': {
+                  'front_default': 'https://example.com/pokemon/other/official-artwork/25.png',
+                },
+              },
+            },
+          };
+    return http.Response.bytes(utf8.encode(jsonEncode(body)), 200);
+  });
+
+  // アプリを起動し直したときと同じく、毎回新しく作る（メモリの中身は空）
+  PokemonRepository newRepository() => PokemonRepository(
+    api: PokeApiClient(client: mock),
+    cache: CacheStore(baseDir: () async => tempDir),
+  );
+
+  test('1回取ったデータと画像は、オフラインでも保存から読める', () async {
+    final first = newRepository();
+    final pikachu = await first.getPokemon(25);
+    await first.downloadImages(pikachu);
+    expect(pikachu.name, 'ピカチュウ');
+    expect(await first.hasImages(pikachu), isTrue);
+
+    // ネットを切って、アプリを起動し直したつもり
+    online = false;
+    final second = newRepository();
+    final again = await second.getPokemon(25);
+    expect(again.name, 'ピカチュウ');
+    expect(again.artworkUrl, pikachu.artworkUrl);
+    expect(await second.hasImages(again), isTrue);
+    expect(await (await second.getImage(again.artworkUrl!)).readAsBytes(), [
+      1,
+      2,
+      3,
+    ]);
+    expect(await second.cachedIds(), {25});
+  });
+
+  test('保存済みなら、サーバーに問い合わせない', () async {
+    final repo = newRepository();
+    await repo.downloadImages(await repo.getPokemon(25));
+    final count = requestCount;
+
+    await repo.downloadImages(await repo.getPokemon(25));
+    expect(requestCount, count);
+  });
+
+  test('保存していないポケモンは、オフラインだとエラーになる', () async {
+    online = false;
+    await expectLater(newRepository().getPokemon(1), throwsA(anything));
+  });
+
+  test('まとめてダウンロードで、進み具合が通知される', () async {
+    final progress = <int>[];
+    final failed = await newRepository().downloadAll(
+      [1, 2, 3, 4, 5],
+      onProgress: (done, total) => progress.add(done),
+      isCancelled: () => false,
+    );
+    expect(failed, 0);
+    expect(progress, [1, 2, 3, 4, 5]);
+    expect(await newRepository().cachedIds(), {1, 2, 3, 4, 5});
+  });
+
+  test('同じ画像を同時に頼んでも、ダウンロードは1回だけで両方成功する', () async {
+    final repo = newRepository();
+    final pikachu = await repo.getPokemon(25);
+    final count = requestCount;
+
+    final files = await Future.wait([
+      repo.getImage(pikachu.artworkUrl!),
+      repo.getImage(pikachu.artworkUrl!),
+    ]);
+    expect(requestCount, count + 1);
+    expect(files[0].path, files[1].path);
+  });
+}
