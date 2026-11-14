@@ -2,12 +2,28 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:material_ui/material_ui.dart';
 
 import 'app_theme.dart';
+import 'data/settings_store.dart';
+import 'models/quiz_settings.dart';
+import 'providers/settings_provider.dart';
 import 'providers/sound_provider.dart';
 import 'screens/title_screen.dart';
 
-void main() {
+Future<void> main() async {
+  // runApp より前に端末の保存領域を使うときは、先にこれを呼ぶ決まり
+  WidgetsFlutterBinding.ensureInitialized();
+  // 前回の設定を読んでから画面を出す（最初から前回の世代・モードになっている）
+  // 読めなかったときは、ふつうの設定で起動する（アプリが開かなくなるのを防ぐ）
+  final settings = await SettingsStore().read().catchError(
+    (Object e) => const QuizSettings(),
+  );
+
   // ProviderScope: Riverpod の Provider を使うために、アプリ全体を包む
-  runApp(const ProviderScope(child: PokepikoApp()));
+  runApp(
+    ProviderScope(
+      overrides: [initialSettingsProvider.overrideWithValue(settings)],
+      child: const PokepikoApp(),
+    ),
+  );
 }
 
 class PokepikoApp extends ConsumerStatefulWidget {
