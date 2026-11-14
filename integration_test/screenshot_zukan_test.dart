@@ -58,9 +58,12 @@ void main() {
       await wait(tester, 1200);
     }
 
-    // --- クイズで3問正解して、図鑑に入れる ---
+    // --- シルエットのクイズで3問正解して、図鑑に入れる ---
     await tester.tap(find.text('はじめる'));
     await wait(tester, 1000);
+    await tester.tap(find.text('シルエット'));
+    await wait(tester, 300);
+    await binding.takeScreenshot('z00b_settings_silhouette');
     await tester.tap(find.text('スタート！'));
     for (var n = 1; n <= 3; n++) {
       await waitFor(tester, find.byType(ChoiceButton));

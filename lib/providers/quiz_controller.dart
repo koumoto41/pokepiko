@@ -95,6 +95,7 @@ class QuizController extends Notifier<QuizState> {
   Timer? _countdownTimer; // 残り時間を1秒ずつ減らすタイマー
   List<int> _candidateIds = []; // 出題の候補（選んだ世代の図鑑番号）
   QuizVariant _variant = QuizVariant.name; // 遊んでいるクイズの種類
+  bool _collects = false; // 正解したポケモンを図鑑に入れるか（シルエットのときだけ）
   int _gameId = 0; // やり直すたびに増える番号。古いゲームの処理を無視するために使う
   bool _offline = false; // 一度ネットにつながらなかったら、そのゲーム中は保存済みだけで出す
 
@@ -110,6 +111,7 @@ class QuizController extends Notifier<QuizState> {
     final settings = ref.read(settingsProvider);
     _candidateIds = settings.candidateIds;
     _variant = settings.variant;
+    _collects = settings.mode == QuizMode.silhouette;
     // Provider が捨てられる・作り直されるときにタイマーも止める
     ref.onDispose(() {
       _nextTimer?.cancel();
@@ -143,7 +145,8 @@ class QuizController extends Notifier<QuizState> {
       results: [...state.results, isCorrect],
     );
 
-    if (isCorrect) _collect(question.pokemon);
+    // 図鑑に入るのは、シルエットで正解したときだけ（影だけで当てたごほうび）
+    if (isCorrect && _collects) _collect(question.pokemon);
 
     // 1秒後に次の問題へ（最後の問題なら結果へ）
     _nextTimer = Timer(_nextDelay, () {

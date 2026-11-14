@@ -4,24 +4,32 @@ import 'package:material_ui/material_ui.dart';
 import 'package:pokepiko/app_theme.dart';
 import 'package:pokepiko/data/collection_store.dart';
 import 'package:pokepiko/data/settings_store.dart';
+import 'package:pokepiko/models/quiz_settings.dart';
 import 'package:pokepiko/providers/collection_provider.dart';
 import 'package:pokepiko/providers/data_providers.dart';
 import 'package:pokepiko/providers/quiz_controller.dart';
 import 'package:pokepiko/providers/settings_provider.dart';
 import 'package:pokepiko/screens/zukan_detail_screen.dart';
 import 'package:pokepiko/screens/zukan_screen.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import 'fakes.dart';
 
 void main() {
-  group('あつめる（クイズで正解すると図鑑に入る）', () {
+  group('あつめる（シルエットのクイズで正解すると図鑑に入る）', () {
     late ProviderContainer container;
     late FakePokemonRepository repo;
 
-    void setUpContainer() {
+    /// settings：遊ぶクイズの設定（ふつうはシルエットのなまえクイズ）
+    void setUpContainer({
+      QuizSettings settings = const QuizSettings(mode: QuizMode.silhouette),
+    }) {
       repo = FakePokemonRepository();
       container = ProviderContainer(
-        overrides: [pokemonRepositoryProvider.overrideWithValue(repo)],
+        overrides: [
+          pokemonRepositoryProvider.overrideWithValue(repo),
+          initialSettingsProvider.overrideWithValue(settings),
+        ],
       );
       container.listen(quizControllerProvider, (_, _) {});
     }
@@ -32,6 +40,16 @@ void main() {
       for (var i = 0; i < 100 && read().status != QuizStatus.answering; i++) {
         await tester.pump();
       }
+    }
+
+    /// 1問目に正解して、図鑑の記録を返す
+    Future<Set<int>> answerFirstCorrectly(WidgetTester tester) async {
+      await waitUntilAnswering(tester);
+      container
+          .read(quizControllerProvider.notifier)
+          .answer(read().current!.correctIndex);
+      await tester.pump();
+      return container.read(collectionProvider.future);
     }
 
     testWidgets('正解したポケモンだけ図鑑に入り、はじめてなら newlyFound にも入る', (tester) async {
@@ -57,6 +75,46 @@ void main() {
       // 図鑑のくわしいページも、裏で保存されている
       expect(repo.savedDex, contains(first.pokemon.id));
       container.dispose();
+    });
+
+    for (final mode in [QuizMode.illustration, QuizMode.pixel]) {
+      testWidgets('${mode.label}のクイズで正解しても、図鑑には入らない', (tester) async {
+        setUpContainer(settings: QuizSettings(mode: mode));
+        expect(await answerFirstCorrectly(tester), isEmpty);
+        expect(read().isCorrect, isTrue);
+        expect(read().newlyFound, isEmpty);
+        container.dispose();
+      });
+    }
+
+    testWidgets('タイプクイズでも、シルエットなら図鑑に入る', (tester) async {
+      setUpContainer(
+        settings: const QuizSettings(
+          mode: QuizMode.silhouette,
+          kind: QuizKind.type,
+          typeDirection: TypeDirection.typeToPokemon,
+        ),
+      );
+      final pokemon = (await (() async {
+        await waitUntilAnswering(tester);
+        return read().current!.pokemon;
+      })());
+      expect(await answerFirstCorrectly(tester), {pokemon.id});
+      container.dispose();
+    });
+
+    test('以前の記録（どのクイズでも入っていたころ）は消して、からっぽから集め直す', () async {
+      await SharedPreferencesAsync().setStringList('collection.found', [
+        '1',
+        '4',
+      ]);
+      final c = ProviderContainer();
+      addTearDown(c.dispose);
+      expect(await c.read(collectionProvider.future), isEmpty);
+      expect(
+        await SharedPreferencesAsync().getStringList('collection.found'),
+        isNull,
+      );
     });
 
     test('みつけたポケモンは端末に残り、2回目は「はじめて」にならない', () async {
@@ -136,7 +194,7 @@ void main() {
 
         await tester.tap(find.text('No.0002'));
         await tester.pump();
-        expect(find.text('クイズで せいかいすると みつかるよ！'), findsOneWidget);
+        expect(find.text('シルエットクイズで せいかいすると みつかるよ！'), findsOneWidget);
       });
 
       testWidgets('$name: くわしいページ（ひらがな／かんじ・進化）', (tester) async {

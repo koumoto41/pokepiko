@@ -125,6 +125,33 @@ class SettingsScreen extends ConsumerWidget {
                       color: (m) => _modeColors[m]!,
                       onSelect: controller.setMode,
                     ),
+                    const SizedBox(height: 6),
+                    // シルエットで正解すると図鑑に入ることを、ここでも知らせる
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(
+                          Icons.menu_book,
+                          size: 20,
+                          color: settings.mode == QuizMode.silhouette
+                              ? Colors.orange
+                              : Colors.black38,
+                        ),
+                        const SizedBox(width: 4),
+                        // 小さい画面でもはみ出さないよう、入りきらなければ縮める
+                        Flexible(
+                          child: FittedBox(
+                            fit: BoxFit.scaleDown,
+                            child: Text(
+                              settings.mode == QuizMode.silhouette
+                                  ? 'せいかいすると ずかんに はいるよ！'
+                                  : 'シルエットで せいかいすると ずかんに はいるよ',
+                              style: const TextStyle(fontSize: 14),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
                     // ダウンロードは保護者向けなので、いちばん下に置く
                     const SizedBox(height: 24),
                     _DownloadSection(ids: settings.candidateIds),

@@ -142,6 +142,10 @@ class _FoundCounter extends StatelessWidget {
                 ),
                 style: const TextStyle(fontSize: 20),
               ),
+              const Text(
+                'シルエットで せいかいすると ずかんに はいるよ',
+                style: TextStyle(fontSize: 13),
+              ),
               const SizedBox(height: 6),
               ClipRRect(
                 borderRadius: BorderRadius.circular(6),
@@ -185,7 +189,7 @@ class _ZukanTile extends ConsumerWidget {
             ..hideCurrentSnackBar()
             ..showSnackBar(
               const SnackBar(
-                content: Text('クイズで せいかいすると みつかるよ！'),
+                content: Text('シルエットクイズで せいかいすると みつかるよ！'),
                 duration: Duration(seconds: 2),
               ),
             ),
