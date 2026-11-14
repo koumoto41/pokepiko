@@ -3,7 +3,8 @@ import 'package:flutter/foundation.dart';
 
 /// BGM の種類（ファイルは assets/ からの場所）
 enum Bgm {
-  title('bgm/title.wav'), // タイトル・設定画面
+  home('bgm/home.wav'), // タイトル画面（昔の携帯ゲーム機風のピコピコした曲）
+  title('bgm/title.wav'), // 設定画面（メニューの曲）
   quiz('bgm/quiz.wav'), // クイズ画面
   zukan('bgm/zukan.wav'); // 図鑑（オルゴールのワルツ）
 

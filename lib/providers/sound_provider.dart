@@ -16,7 +16,7 @@ class BgmNavigatorObserver extends NavigatorObserver {
   BgmNavigatorObserver(this.sound);
 
   static const _bgmByRoute = {
-    RouteNames.title: Bgm.title,
+    RouteNames.title: Bgm.home,
     RouteNames.settings: Bgm.title,
     RouteNames.quiz: Bgm.quiz,
     RouteNames.zukan: Bgm.zukan, // 図鑑は専用の曲
