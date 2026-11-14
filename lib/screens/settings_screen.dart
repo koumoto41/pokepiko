@@ -67,7 +67,8 @@ class SettingsScreen extends ConsumerWidget {
                       physics: const NeverScrollableScrollPhysics(),
                       mainAxisSpacing: 8,
                       crossAxisSpacing: 8,
-                      childAspectRatio: 0.85, // ポケモンの絵が入るよう縦長に
+                      // 横長のタイル（左に絵、右に数字）。縦の幅を節約して、SE でもモードまで見えるように
+                      childAspectRatio: 1.45,
                       children: [
                         for (final g in Generation.all)
                           _GenerationTile(
@@ -83,9 +84,7 @@ class SettingsScreen extends ConsumerWidget {
                       textAlign: TextAlign.center,
                       style: const TextStyle(fontSize: 16),
                     ),
-                    const SizedBox(height: 8),
-                    _DownloadSection(ids: settings.candidateIds),
-                    const SizedBox(height: 24),
+                    const SizedBox(height: 16),
                     const _SectionTitle('モード'),
                     const SizedBox(height: 8),
                     Row(
@@ -113,15 +112,18 @@ class SettingsScreen extends ConsumerWidget {
                         ],
                       ],
                     ),
+                    // ダウンロードは保護者向けなので、いちばん下に置く
+                    const SizedBox(height: 24),
+                    _DownloadSection(ids: settings.candidateIds),
                   ],
                 ),
               ),
               // スタートボタンは常に画面の下に見えるようにする
               Padding(
-                padding: const EdgeInsets.all(16),
+                padding: EdgeInsets.all(context.isCompactHeight ? 12 : 16),
                 child: SizedBox(
                   width: double.infinity,
-                  height: 72,
+                  height: context.isCompactHeight ? 64 : 72,
                   child: FilledButton(
                     style: FilledButton.styleFrom(
                       backgroundColor: Colors.red,
@@ -178,10 +180,12 @@ class _GenerationTile extends StatelessWidget {
       selected: selected,
       color: Colors.blue,
       onTap: onTap,
-      child: Column(
+      padding: const EdgeInsets.all(6),
+      child: Row(
         children: [
           // 代表のポケモン（えらばれていないときは うすく表示）
           Expanded(
+            flex: 5,
             child: Opacity(
               opacity: selected ? 1.0 : 0.4,
               child: CachedImage(
@@ -191,11 +195,25 @@ class _GenerationTile extends StatelessWidget {
               ),
             ),
           ),
-          Text(
-            '${generation.number}',
-            style: const TextStyle(fontSize: 28, fontWeight: FontWeight.bold),
+          // 数字と地方名（入りきらなければ縮める）
+          Expanded(
+            flex: 4,
+            child: FittedBox(
+              fit: BoxFit.scaleDown,
+              child: Column(
+                children: [
+                  Text(
+                    '${generation.number}',
+                    style: const TextStyle(
+                      fontSize: 30,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  Text(generation.region, style: const TextStyle(fontSize: 12)),
+                ],
+              ),
+            ),
           ),
-          Text(generation.region, style: const TextStyle(fontSize: 13)),
         ],
       ),
     );
@@ -208,12 +226,14 @@ class _SelectTile extends StatelessWidget {
   final Color color;
   final VoidCallback onTap;
   final Widget child;
+  final EdgeInsets padding;
 
   const _SelectTile({
     required this.selected,
     required this.color,
     required this.onTap,
     required this.child,
+    this.padding = const EdgeInsets.symmetric(vertical: 12),
   });
 
   @override
@@ -225,7 +245,7 @@ class _SelectTile extends StatelessWidget {
         borderRadius: BorderRadius.circular(16),
         onTap: onTap,
         child: Padding(
-          padding: const EdgeInsets.symmetric(vertical: 12),
+          padding: padding,
           // 中の文字・アイコンの色を、えらばれているかどうかでまとめて変える
           child: IconTheme(
             data: IconThemeData(
@@ -278,7 +298,6 @@ class _DownloadSection extends ConsumerWidget {
               label: 'ぜんこく ずかん',
               ids: allIds,
               cached: cached,
-              buttonText: 'ぜんぶ ダウンロード',
               onDownload: () => _confirmDownloadAll(context, allIds),
             ),
           ],
@@ -330,7 +349,6 @@ class _DownloadRow extends StatelessWidget {
   final String label;
   final List<int> ids;
   final Set<int> cached;
-  final String buttonText;
   final VoidCallback onDownload;
 
   const _DownloadRow({
@@ -338,7 +356,6 @@ class _DownloadRow extends StatelessWidget {
     required this.ids,
     required this.cached,
     required this.onDownload,
-    this.buttonText = 'ダウンロード',
   });
 
   @override
@@ -362,12 +379,24 @@ class _DownloadRow extends StatelessWidget {
                 allSaved
                     ? 'ぜんぶ ほぞんずみ（オフラインで あそべる）'
                     : 'ほぞんずみ $savedCount / ${ids.length} ひき',
+                style: const TextStyle(fontSize: 13),
               ),
             ],
           ),
         ),
         if (!allSaved)
-          FilledButton.tonal(onPressed: onDownload, child: Text(buttonText)),
+          // 保護者向けのボタンなので、テーマの大きい文字ではなく小さめにする
+          FilledButton.tonal(
+            style: FilledButton.styleFrom(
+              textStyle: const TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.bold,
+              ),
+              padding: const EdgeInsets.symmetric(horizontal: 12),
+            ),
+            onPressed: onDownload,
+            child: const Text('ダウンロード'),
+          ),
       ],
     );
   }

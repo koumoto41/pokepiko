@@ -52,7 +52,13 @@ class QuizScreen extends ConsumerWidget {
       colors: const [Color(0xFFB3E5FC), AppColors.cream], // 空色 → クリーム色
       child: Scaffold(
         backgroundColor: Colors.transparent,
-        appBar: AppBar(title: const Text('このポケモン だーれだ？')),
+        // 小さい画面でもタイトルが「…」で切れないよう、入りきらなければ縮める
+        appBar: AppBar(
+          title: const FittedBox(
+            fit: BoxFit.scaleDown,
+            child: Text('このポケモン だーれだ？'),
+          ),
+        ),
         body: SafeArea(child: _buildBody(context, ref, state)),
       ),
     );
@@ -92,6 +98,9 @@ class QuizScreen extends ConsumerWidget {
     final answered = state.status == QuizStatus.answered;
     final isCorrect = state.selected?.id == question.answer.id;
     final isTimeUp = answered && state.selected == null;
+    // iPhone SE など縦が短い画面では、ボタンとすき間を小さくして画像の場所を広げる
+    final compact = context.isCompactHeight;
+    final gap = compact ? 8.0 : 12.0;
 
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
@@ -102,12 +111,12 @@ class QuizScreen extends ConsumerWidget {
             current: state.questionNumber,
             results: state.results,
           ),
-          const SizedBox(height: 12),
+          SizedBox(height: gap),
           TimerBar(
             remainingSeconds: state.remainingSeconds,
             totalSeconds: QuizController.timeLimitSeconds,
           ),
-          const SizedBox(height: 12),
+          SizedBox(height: gap),
           // ポケモンの画像（白いカードの上）と、回答後の演出
           Expanded(
             child: Card(
@@ -136,7 +145,7 @@ class QuizScreen extends ConsumerWidget {
           ),
           // 回答後のメッセージ（高さを固定して、ボタンの位置がずれないようにする）
           SizedBox(
-            height: 48,
+            height: compact ? 40 : 48,
             child: Center(
               child: answered
                   ? FittedBox(
@@ -162,11 +171,12 @@ class QuizScreen extends ConsumerWidget {
               label: p.name,
               color: AppColors.choices[i % AppColors.choices.length],
               look: _choiceLook(state, p),
+              height: compact ? 56 : 68,
               onPressed: answered
                   ? null
                   : () => ref.read(quizControllerProvider.notifier).answer(p),
             ),
-            if (i < question.choices.length - 1) const SizedBox(height: 12),
+            if (i < question.choices.length - 1) SizedBox(height: gap),
           ],
         ],
       ),

@@ -39,7 +39,7 @@ ThemeData buildAppTheme() {
       elevation: 0,
       centerTitle: true,
       titleTextStyle: TextStyle(
-        fontSize: 26,
+        fontSize: 22,
         fontWeight: FontWeight.bold,
         color: AppColors.brown,
       ),
@@ -96,4 +96,10 @@ class GradientBackground extends StatelessWidget {
       child: child,
     );
   }
+}
+
+/// 画面の大きさに合わせて、レイアウトを切りかえるための便利な関数
+extension ScreenSize on BuildContext {
+  /// iPhone SE など、縦が短い画面か（SE は 667、ほかの最近の iPhone は 800 以上）
+  bool get isCompactHeight => MediaQuery.sizeOf(this).height < 700;
 }

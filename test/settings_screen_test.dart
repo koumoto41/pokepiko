@@ -11,6 +11,9 @@ import 'fakes.dart';
 void main() {
   late FakePokemonRepository repo;
 
+  // 全国図鑑の「ダウンロード」ボタン（えらんだ世代の段の下にあるので、いちばん最後）
+  Finder downloadAllButton() => find.text('ダウンロード').last;
+
   // ダイアログの中にある文字（設定画面にも同じ文字のボタンがあるので区別する）
   Finder inDialog(String text) =>
       find.descendant(of: find.byType(AlertDialog), matching: find.text(text));
@@ -33,7 +36,7 @@ void main() {
     await pumpSettings(tester);
     expect(find.text('ほぞんずみ 0 / 1025 ひき'), findsOneWidget);
 
-    await tester.tap(find.text('ぜんぶ ダウンロード'));
+    await tester.tap(downloadAllButton());
     await tester.pumpAndSettle();
     expect(find.text('ぜんぶ ダウンロードしますか？'), findsOneWidget);
 
@@ -46,13 +49,13 @@ void main() {
     await tester.tap(find.text('とじる'));
     await tester.pumpAndSettle();
     // 保存済みの数が更新されて、ボタンが消える
-    expect(find.text('ぜんぶ ダウンロード'), findsNothing);
+    expect(find.text('ダウンロード'), findsNothing);
     expect(find.text('ぜんぶ ほぞんずみ（オフラインで あそべる）'), findsWidgets);
   });
 
   testWidgets('確認で「やめる」を押すと、ダウンロードしない', (tester) async {
     await pumpSettings(tester);
-    await tester.tap(find.text('ぜんぶ ダウンロード'));
+    await tester.tap(downloadAllButton());
     await tester.pumpAndSettle();
     await tester.tap(inDialog('やめる'));
     await tester.pumpAndSettle();
@@ -63,7 +66,7 @@ void main() {
     await pumpSettings(tester);
     repo.downloadGate = Completer<void>(); // 終わらせずに止めておく
 
-    await tester.tap(find.text('ぜんぶ ダウンロード'));
+    await tester.tap(downloadAllButton());
     await tester.pumpAndSettle();
     await tester.tap(inDialog('ダウンロード'));
     await tester.pumpAndSettle(); // 確認ダイアログが閉じきるまで待つ
@@ -76,6 +79,6 @@ void main() {
     // 閉じたあとにダウンロードが終わっても、表示が更新されるだけ
     repo.downloadGate!.complete();
     await tester.pumpAndSettle();
-    expect(find.text('ぜんぶ ダウンロード'), findsNothing);
+    expect(find.text('ダウンロード'), findsNothing);
   });
 }
