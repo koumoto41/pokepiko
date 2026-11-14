@@ -84,6 +84,9 @@ void main() {
     await tester.tap(find.text('ずかん'));
     await wait(tester, 3000);
     await binding.takeScreenshot('z01_list');
+    await tester.tap(find.text('みつけた だけ'));
+    await wait(tester, 1000);
+    await binding.takeScreenshot('z01b_list_found_only');
 
     // みつけたポケモンのうち、いま表示している世代でいちばん番号が小さいものを開く
     // （一覧の下のほうにいることもあるので、見えるまでドラッグしてから押す）

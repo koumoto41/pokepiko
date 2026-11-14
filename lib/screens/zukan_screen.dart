@@ -21,6 +21,7 @@ class ZukanScreen extends ConsumerStatefulWidget {
 
 class _ZukanScreenState extends ConsumerState<ZukanScreen> {
   int? _generation; // 見ている世代（null のあいだは、自動で決める）
+  bool _foundOnly = false; // true：みつけたポケモンだけ並べる
 
   @override
   Widget build(BuildContext context) {
@@ -37,6 +38,11 @@ class _ZukanScreenState extends ConsumerState<ZukanScreen> {
             .number;
     final generation = Generation.all[selected - 1];
     final foundInGeneration = generation.ids.where(found.contains).length;
+    // 並べる図鑑番号（「みつけた だけ」のときは、みつけたポケモンだけ）
+    final ids = [
+      for (final id in generation.ids)
+        if (!_foundOnly || found.contains(id)) id,
+    ];
 
     return GradientBackground(
       colors: const [Color(0xFFFFE0B2), AppColors.cream], // オレンジ → クリーム色
@@ -74,31 +80,61 @@ class _ZukanScreenState extends ConsumerState<ZukanScreen> {
                   ],
                 ),
               ),
+              // 世代の数と「みつけた だけ」のチェック（縦の場所をとらないよう同じ行に）
               Padding(
-                padding: const EdgeInsets.symmetric(vertical: 4),
-                child: Text(
-                  'このせだい：$foundInGeneration / ${generation.count} ひき',
-                  style: const TextStyle(fontSize: 16),
+                padding: const EdgeInsets.fromLTRB(16, 4, 12, 4),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: FittedBox(
+                        fit: BoxFit.scaleDown,
+                        alignment: Alignment.centerLeft,
+                        child: Text(
+                          'このせだい：$foundInGeneration / ${generation.count} ひき',
+                          style: const TextStyle(fontSize: 16),
+                        ),
+                      ),
+                    ),
+                    // FilterChip：押すとオン・オフが切りかわる、チェックつきのボタン
+                    FilterChip(
+                      label: const Text(
+                        'みつけた だけ',
+                        style: TextStyle(fontSize: 16),
+                      ),
+                      selected: _foundOnly,
+                      onSelected: (on) => setState(() => _foundOnly = on),
+                    ),
+                  ],
                 ),
               ),
               // その世代のポケモンを4列で並べる
               Expanded(
-                child: GridView.builder(
-                  // 世代を変えたら、いちばん上から見せる
-                  key: ValueKey(selected),
-                  padding: const EdgeInsets.fromLTRB(12, 4, 12, 16),
-                  gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                    crossAxisCount: 4,
-                    mainAxisSpacing: 8,
-                    crossAxisSpacing: 8,
-                    childAspectRatio: 0.78,
-                  ),
-                  itemCount: generation.count,
-                  itemBuilder: (context, i) {
-                    final id = generation.firstId + i;
-                    return _ZukanTile(id: id, found: found.contains(id));
-                  },
-                ),
+                child: ids.isEmpty
+                    // 「みつけた だけ」で、この世代にまだ1匹もいないとき
+                    ? const Center(
+                        child: Text(
+                          'このせだいは まだ みつけていないよ\nシルエットクイズで さがしてみよう！',
+                          textAlign: TextAlign.center,
+                          style: TextStyle(fontSize: 18),
+                        ),
+                      )
+                    : GridView.builder(
+                        // 世代や「みつけた だけ」を変えたら、いちばん上から見せる
+                        key: ValueKey((selected, _foundOnly)),
+                        padding: const EdgeInsets.fromLTRB(12, 4, 12, 16),
+                        gridDelegate:
+                            const SliverGridDelegateWithFixedCrossAxisCount(
+                              crossAxisCount: 4,
+                              mainAxisSpacing: 8,
+                              crossAxisSpacing: 8,
+                              childAspectRatio: 0.78,
+                            ),
+                        itemCount: ids.length,
+                        itemBuilder: (context, i) => _ZukanTile(
+                          id: ids[i],
+                          found: found.contains(ids[i]),
+                        ),
+                      ),
               ),
             ],
           ),

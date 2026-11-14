@@ -170,6 +170,36 @@ void main() {
       await tester.pumpAndSettle();
     }
 
+    testWidgets('「みつけた だけ」をオンにすると、みつけたポケモンだけ並ぶ', (tester) async {
+      await pumpApp(
+        tester,
+        sizes['iPhone SE']!,
+        const ZukanScreen(),
+        found: {1, 4, 152},
+      );
+      expect(find.text('No.0002'), findsOneWidget); // オフのときは全部並ぶ
+
+      await tester.tap(find.text('みつけた だけ'));
+      await tester.pumpAndSettle();
+      expect(find.text('P1'), findsOneWidget);
+      expect(find.text('P4'), findsOneWidget);
+      expect(find.text('No.0002'), findsNothing); // まだのポケモンは出ない
+      expect(find.text('？'), findsNothing);
+
+      // 第3世代は1匹もいないので、さがそうと案内する
+      // 世代のボタンの列は横にスクロールするので、見える位置まで動かしてから押す
+      await tester.ensureVisible(find.text('3 ホウエン'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('3 ホウエン'));
+      await tester.pumpAndSettle();
+      expect(find.textContaining('まだ みつけていないよ'), findsOneWidget);
+
+      // オフに戻すと、また全部並ぶ
+      await tester.tap(find.text('みつけた だけ'));
+      await tester.pumpAndSettle();
+      expect(find.text('No.0252'), findsOneWidget);
+    });
+
     testWidgets('はじめは、みつけたポケモンがいる いちばん若い世代を見せる', (tester) async {
       await pumpApp(
         tester,
