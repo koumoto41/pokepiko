@@ -49,41 +49,52 @@ class _AnswerEffectState extends State<AnswerEffect>
   Widget build(BuildContext context) {
     return IgnorePointer(
       // AnimatedBuilder: 時計が進むたびに builder だけを描き直す
-      child: AnimatedBuilder(
-        animation: _controller,
-        builder: (context, _) {
-          final t = _controller.value;
-          return Stack(
-            alignment: Alignment.center,
-            children: [
-              if (widget.correct)
-                for (var i = 0; i < _starCount; i++) _star(i, t),
-              Transform.scale(
-                scale: _pop.value,
-                child: Text(
-                  widget.correct ? '〇' : '×',
-                  style: TextStyle(
-                    fontSize: 220,
-                    fontWeight: FontWeight.bold,
-                    color: (widget.correct ? Colors.red : Colors.blue)
-                        .withValues(alpha: 0.75),
-                    shadows: const [
-                      Shadow(color: Colors.white, blurRadius: 12),
-                    ],
-                  ),
-                ),
-              ),
-            ],
+      // LayoutBuilder: 置かれた場所の大きさを知って、〇や星の大きさを合わせる
+      // （小さい画面で〇がカードからはみ出さないように）
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final size = min(constraints.maxWidth, constraints.maxHeight);
+          return AnimatedBuilder(
+            animation: _controller,
+            builder: (context, _) =>
+                _buildFrame(_controller.value, size.isFinite ? size : 300),
           );
         },
       ),
     );
   }
 
+  /// アニメーションの1コマ分（t: 0.0〜1.0、size: 使える大きさ）
+  Widget _buildFrame(double t, double size) {
+    return Stack(
+      alignment: Alignment.center,
+      children: [
+        if (widget.correct)
+          for (var i = 0; i < _starCount; i++) _star(i, t, size),
+        Transform.scale(
+          scale: _pop.value,
+          child: Text(
+            widget.correct ? '〇' : '×',
+            // 文字は上下に余白があるので、使える大きさより少し大きめでちょうどよい
+            style: TextStyle(
+              height: 1,
+              fontSize: min(220, size * 0.9),
+              fontWeight: FontWeight.bold,
+              color: (widget.correct ? Colors.red : Colors.blue).withValues(
+                alpha: 0.75,
+              ),
+              shadows: const [Shadow(color: Colors.white, blurRadius: 12)],
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
   /// i 番目の星：まん中から外へ飛んで、だんだん消える
-  Widget _star(int i, double t) {
+  Widget _star(int i, double t, double size) {
     final angle = 2 * pi * i / _starCount;
-    final distance = 40 + 140 * Curves.easeOut.transform(t);
+    final distance = size * (0.2 + 0.35 * Curves.easeOut.transform(t));
     return Transform.translate(
       offset: Offset(cos(angle) * distance, sin(angle) * distance),
       child: Opacity(
@@ -92,7 +103,7 @@ class _AnswerEffectState extends State<AnswerEffect>
           angle: t * pi,
           child: Icon(
             Icons.star,
-            size: 36,
+            size: min(36, size * 0.15),
             color: _starColors[i % _starColors.length],
           ),
         ),

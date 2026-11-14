@@ -62,6 +62,9 @@ class _PokepikoAppState extends ConsumerState<PokepikoApp> {
       title: 'ポケピコ',
       theme: buildAppTheme(), // 色・文字・ボタンの形は app_theme.dart でまとめて決める
       navigatorObservers: [_bgmObserver],
+      // iPhone の設定で文字を大きくしていても、画面が崩れない範囲（1.2倍まで）にする
+      builder: (context, child) =>
+          MediaQuery.withClampedTextScaling(maxScaleFactor: 1.2, child: child!),
       // 画面の流れ：タイトル → 設定 → クイズ → 結果
       home: const TitleScreen(),
     );

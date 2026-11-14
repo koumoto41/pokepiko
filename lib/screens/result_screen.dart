@@ -41,6 +41,12 @@ class _ResultScreenState extends ConsumerState<ResultScreen> {
   // ハイスコアを更新したかどうか（記録が終わるまで待つ）
   late final Future<bool> _isNewRecord;
 
+  // 下の2つのボタン（どちらも同じ大きさの文字にする）
+  static final _smallButtonStyle = OutlinedButton.styleFrom(
+    textStyle: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+    padding: const EdgeInsets.symmetric(horizontal: 8),
+  );
+
   static const _messages = {
     3: 'すごい！ ポケモン はかせだね！',
     2: 'よく できました！',
@@ -61,6 +67,7 @@ class _ResultScreenState extends ConsumerState<ResultScreen> {
     final wrongPokemons = widget.wrongPokemons;
     final best = ref.watch(highScoresProvider).value?[widget.mode];
     final stars = ResultScreen.starsFor(widget.correctCount, widget.total);
+    final compact = context.isCompactHeight; // iPhone SE など縦が短い画面
 
     return GradientBackground(
       colors: const [Color(0xFFFFF59D), AppColors.cream], // 黄色 → クリーム色
@@ -75,12 +82,16 @@ class _ResultScreenState extends ConsumerState<ResultScreen> {
             padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
             child: Column(
               children: [
-                _Stars(count: stars),
-                Text(
-                  _messages[stars]!,
-                  style: const TextStyle(
-                    fontSize: 24,
-                    fontWeight: FontWeight.bold,
+                _Stars(count: stars, scale: compact ? 0.75 : 1),
+                // 長いメッセージでも2行にならないよう、入りきらなければ縮める
+                FittedBox(
+                  fit: BoxFit.scaleDown,
+                  child: Text(
+                    _messages[stars]!,
+                    style: const TextStyle(
+                      fontSize: 24,
+                      fontWeight: FontWeight.bold,
+                    ),
                   ),
                 ),
                 const SizedBox(height: 4),
@@ -133,16 +144,19 @@ class _ResultScreenState extends ConsumerState<ResultScreen> {
                               style: TextStyle(fontSize: 20),
                             ),
                             const SizedBox(height: 8),
+                            // 横にスワイプして見る列（カードが途中で切れず、名前まで見える）
                             Expanded(
-                              child: GridView.count(
-                                crossAxisCount: 3,
-                                mainAxisSpacing: 8,
-                                crossAxisSpacing: 8,
-                                childAspectRatio: 0.85,
-                                children: [
-                                  for (final p in wrongPokemons)
-                                    _WrongPokemonCard(pokemon: p),
-                                ],
+                              child: ListView.separated(
+                                scrollDirection: Axis.horizontal,
+                                itemCount: wrongPokemons.length,
+                                separatorBuilder: (_, _) =>
+                                    const SizedBox(width: 8),
+                                itemBuilder: (_, i) => AspectRatio(
+                                  aspectRatio: 0.8,
+                                  child: _WrongPokemonCard(
+                                    pokemon: wrongPokemons[i],
+                                  ),
+                                ),
                               ),
                             ),
                           ],
@@ -151,7 +165,7 @@ class _ResultScreenState extends ConsumerState<ResultScreen> {
                 const SizedBox(height: 12),
                 SizedBox(
                   width: double.infinity,
-                  height: 68,
+                  height: compact ? 60 : 68,
                   child: FilledButton(
                     style: FilledButton.styleFrom(backgroundColor: Colors.red),
                     // 同じ画面を作り直して、もう1ゲーム
@@ -169,24 +183,26 @@ class _ResultScreenState extends ConsumerState<ResultScreen> {
                   children: [
                     Expanded(
                       child: SizedBox(
-                        height: 60,
+                        height: compact ? 52 : 60,
                         child: OutlinedButton(
+                          style: _smallButtonStyle,
                           // 結果画面を閉じると、下にある設定画面に戻る
                           onPressed: () => Navigator.of(context).pop(),
-                          child: const FittedBox(child: Text('せっていを かえる')),
+                          child: const Text('せってい'),
                         ),
                       ),
                     ),
                     const SizedBox(width: 8),
                     Expanded(
                       child: SizedBox(
-                        height: 60,
+                        height: compact ? 52 : 60,
                         child: OutlinedButton(
+                          style: _smallButtonStyle,
                           // 一番下（最初）の画面＝タイトルまで戻る
                           onPressed: () =>
                               Navigator.of(context)
                                   .popUntil((route) => route.isFirst),
-                          child: const FittedBox(child: Text('タイトルへ')),
+                          child: const Text('タイトル'),
                         ),
                       ),
                     ),
@@ -204,7 +220,8 @@ class _ResultScreenState extends ConsumerState<ResultScreen> {
 /// 星を3つ並べ、もらえた数だけ順番に「ぽん」と出す
 class _Stars extends StatelessWidget {
   final int count;
-  const _Stars({required this.count});
+  final double scale; // 小さい画面では小さく
+  const _Stars({required this.count, this.scale = 1});
 
   @override
   Widget build(BuildContext context) {
@@ -222,7 +239,7 @@ class _Stars extends StatelessWidget {
                 Transform.scale(scale: t, child: child),
             child: Icon(
               Icons.star_rounded,
-              size: i == 1 ? 96 : 76, // まん中だけ大きく
+              size: (i == 1 ? 96 : 76) * scale, // まん中だけ大きく
               color: i < count ? Colors.amber : Colors.grey.shade300,
               shadows: const [Shadow(color: Colors.white, blurRadius: 8)],
             ),

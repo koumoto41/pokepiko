@@ -17,6 +17,7 @@ class ChoiceButton extends StatefulWidget {
   final Color color; // ふだんの色
   final ChoiceLook look;
   final VoidCallback? onPressed; // null だと押せない
+  final double height;
 
   const ChoiceButton({
     super.key,
@@ -24,6 +25,7 @@ class ChoiceButton extends StatefulWidget {
     required this.color,
     this.look = ChoiceLook.normal,
     this.onPressed,
+    this.height = 68,
   });
 
   @override
@@ -64,10 +66,10 @@ class _ChoiceButtonState extends State<ChoiceButton> {
           onTap: widget.onPressed,
           child: AnimatedContainer(
             duration: const Duration(milliseconds: 200),
-            height: 68,
+            height: widget.height,
             decoration: BoxDecoration(
               color: color,
-              borderRadius: BorderRadius.circular(34),
+              borderRadius: BorderRadius.circular(widget.height / 2),
               // 下に濃い影をつけて、ぷっくりしたボタンに見せる
               boxShadow: [
                 BoxShadow(
