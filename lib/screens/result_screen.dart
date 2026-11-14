@@ -4,6 +4,7 @@ import 'package:material_ui/material_ui.dart';
 import '../app_theme.dart';
 import '../models/pokemon.dart';
 import '../models/quiz_settings.dart';
+import '../models/score.dart';
 import '../providers/high_score_provider.dart';
 import '../providers/sound_provider.dart';
 import 'quiz_screen.dart';
@@ -46,6 +47,7 @@ class ResultScreen extends ConsumerStatefulWidget {
   final int total;
   final List<Pokemon> wrongPokemons;
   final int newlyFound; // このゲームで図鑑にはじめて入ったポケモンの数
+  final Score score; // 点数（ハイスコアはこれで記録する）
 
   const ResultScreen({
     super.key,
@@ -55,6 +57,7 @@ class ResultScreen extends ConsumerStatefulWidget {
     required this.total,
     required this.wrongPokemons,
     this.newlyFound = 0,
+    this.score = const Score(),
   });
 
   @override
@@ -77,7 +80,7 @@ class _ResultScreenState extends ConsumerState<ResultScreen> {
     // build は何度も呼ばれるので、記録は initState で1回だけ
     _isNewRecord = ref
         .read(highScoresProvider.notifier)
-        .submit(widget.variant, widget.mode, widget.correctCount);
+        .submit(widget.variant, widget.mode, widget.score.total);
     // 正解数に合わせた曲を、1回だけ鳴らす
     ref
         .read(soundServiceProvider)
@@ -122,23 +125,34 @@ class _ResultScreenState extends ConsumerState<ResultScreen> {
                       ),
                     ),
                     const SizedBox(height: 4),
+                    // 点数を大きく、その下に正解数と点数の内訳
                     Text.rich(
                       TextSpan(
                         children: [
-                          TextSpan(text: '${widget.total} もん中 '),
                           TextSpan(
-                            text: '${widget.correctCount}',
+                            text: '${widget.score.total}',
                             style: const TextStyle(
-                              fontSize: 44,
+                              fontSize: 48,
                               fontWeight: FontWeight.bold,
                               color: Colors.deepOrange,
                             ),
                           ),
-                          const TextSpan(text: ' もん せいかい'),
+                          const TextSpan(text: ' てん'),
                         ],
                       ),
-                      style: const TextStyle(fontSize: 22),
+                      style: const TextStyle(
+                        fontSize: 24,
+                        fontWeight: FontWeight.bold,
+                      ),
                     ),
+                    FittedBox(
+                      fit: BoxFit.scaleDown,
+                      child: Text(
+                        '${widget.total} もん中 ${widget.correctCount} もん せいかい',
+                        style: const TextStyle(fontSize: 18),
+                      ),
+                    ),
+                    _ScoreBreakdown(score: widget.score),
                     if (widget.newlyFound > 0)
                       Row(
                         mainAxisAlignment: MainAxisAlignment.center,
@@ -166,7 +180,7 @@ class _ResultScreenState extends ConsumerState<ResultScreen> {
                                 best == null
                                     ? ''
                                     : '${widget.variant.label}・${widget.mode.label}の'
-                                          ' ハイスコア：$best もん',
+                                          ' ハイスコア：$best てん',
                                 style: const TextStyle(fontSize: 18),
                               ),
                             ),
@@ -384,6 +398,29 @@ class _NewRecordBanner extends StatelessWidget {
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+/// 点数の内訳（せいかい・はやさ・れんぞく・パーフェクト）を小さく並べる
+class _ScoreBreakdown extends StatelessWidget {
+  final Score score;
+  const _ScoreBreakdown({required this.score});
+
+  @override
+  Widget build(BuildContext context) {
+    final items = [
+      ('せいかい', score.correct),
+      ('はやさ', score.speed),
+      ('れんぞく', score.combo),
+      if (score.perfect > 0) ('パーフェクト', score.perfect),
+    ];
+    return FittedBox(
+      fit: BoxFit.scaleDown,
+      child: Text(
+        [for (final (label, points) in items) '$label $points'].join('・'),
+        style: const TextStyle(fontSize: 15, color: Colors.black54),
       ),
     );
   }

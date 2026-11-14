@@ -69,6 +69,8 @@ void main() {
 
       expect(find.byType(AnswerEffect), findsOneWidget);
       expect(find.text('せいかい！'), findsOneWidget);
+      // すぐ答えたので、せいかい100＋はやさ300 の点数がぴょこっと出る
+      expect(find.text('+400'), findsOneWidget);
       final looks = tester
           .widgetList<ChoiceButton>(find.byType(ChoiceButton))
           .map((b) => b.look);

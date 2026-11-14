@@ -242,4 +242,59 @@ void main() {
       container.dispose();
     });
   });
+
+  group('点数', () {
+    testWidgets('10問とも、すぐ正解すると 5200点（最高点）', (tester) async {
+      setUpContainer();
+      // playAll は、問題が出たらすぐ（残り30秒で）正解する
+      await playAll(tester, (_) {});
+      final score = read().score;
+      expect(score.correct, 1000);
+      expect(score.speed, 3000);
+      expect(score.combo, 700); // 0+20+40+60+80+100×5
+      expect(score.perfect, 500);
+      expect(score.total, 5200);
+      container.dispose();
+    });
+
+    testWidgets('ゆっくり答えると、はやさの点数が減る', (tester) async {
+      setUpContainer();
+      await waitUntilAnswering(tester);
+      await tester.pump(const Duration(seconds: 12)); // 残り18秒
+      answer(question().correctIndex);
+      expect(read().lastPoints!.speed, 180);
+      expect(read().score.total, 280);
+      container.dispose();
+    });
+
+    testWidgets('間違えると0点で、れんぞくも切れる。全問正解でないとパーフェクトはない', (tester) async {
+      setUpContainer();
+      for (var n = 1; n <= QuizController.questionCount; n++) {
+        await waitUntilAnswering(tester);
+        // 3問目だけ間違える
+        answer(n == 3 ? wrongIndex() : question().correctIndex);
+        if (n == 3) {
+          expect(read().lastPoints, isNull);
+          expect(read().streak, 0);
+        }
+        if (n == 5) expect(read().lastPoints!.combo, 20); // 4・5問目で2連続
+        await tester.pump(const Duration(seconds: 1));
+      }
+      final score = read().score;
+      expect(score.correct, 900);
+      expect(score.perfect, 0);
+      // れんぞく：1〜2問目で 0+20、4〜10問目で 0+20+40+60+80+100+100
+      expect(score.combo, 20 + 400);
+      container.dispose();
+    });
+
+    testWidgets('時間切れも0点', (tester) async {
+      setUpContainer();
+      await waitUntilAnswering(tester);
+      await tester.pump(const Duration(seconds: 30));
+      expect(read().isCorrect, isFalse);
+      expect(read().score.total, 0);
+      container.dispose();
+    });
+  });
 }

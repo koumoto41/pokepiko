@@ -11,7 +11,7 @@ final highScoreStoreProvider = Provider<HighScoreStore>(
 /// レコード型 (A, B) は、2つの値をひとまとめにして Map のキーにできる
 typedef ScoreKey = (QuizVariant, QuizMode);
 
-/// 区分ごとのハイスコア
+/// 区分ごとのハイスコア（最高点）
 /// AsyncNotifier: 端末から読み込むのに時間がかかる（非同期の）状態を持つ Notifier
 final highScoresProvider =
     AsyncNotifierProvider<HighScoresController, Map<ScoreKey, int>>(

@@ -5,6 +5,7 @@ import 'package:integration_test/integration_test.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:pokepiko/main.dart' as app;
 import 'package:pokepiko/providers/quiz_controller.dart';
+import 'package:pokepiko/providers/sound_provider.dart';
 import 'package:pokepiko/screens/quiz_screen.dart';
 import 'package:pokepiko/screens/result_screen.dart';
 import 'package:pokepiko/screens/widgets/choice_button.dart';
@@ -61,7 +62,14 @@ void main() {
       await tester.tap(
         find.byType(ChoiceButton).at(quiz.current!.correctIndex),
       );
-      await wait(tester, 1300);
+      // 正解したときの点数（2問目は「2れんぞく！」も出る）
+      if (n == 2) {
+        await wait(tester, 200);
+        await binding.takeScreenshot('c00_points_popup');
+        await wait(tester, 1100);
+      } else {
+        await wait(tester, 1300);
+      }
     }
 
     await waitFor(tester, find.text('もういちど'));
@@ -70,8 +78,14 @@ void main() {
       await binding.takeScreenshot('c0${i}_celebration');
     }
 
-    // お祝いが終わるまで待ってから終わる（動いているアニメーションを残さない）
+    // お祝いが終わるまで待ってから、タイトルに戻ってハイスコアの表を見る
     await wait(tester, 5000);
+    await tester.tap(find.text('タイトル'));
+    await wait(tester, 2500);
+    await binding.takeScreenshot('c04_title_high_score');
+    await ProviderScope.containerOf(tester.element(find.text('はじめる')))
+        .read(soundServiceProvider)
+        .stopBgm();
     await tester.pumpWidget(const SizedBox());
     await wait(tester, 300);
   });

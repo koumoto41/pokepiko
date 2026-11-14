@@ -12,6 +12,7 @@ import 'route_names.dart';
 import 'widgets/answer_effect.dart';
 import 'widgets/choice_button.dart';
 import 'widgets/image_choice.dart';
+import 'widgets/points_popup.dart';
 import 'widgets/pokemon_image.dart';
 import 'widgets/timer_bar.dart';
 import 'widgets/type_badge.dart';
@@ -53,6 +54,7 @@ class QuizScreen extends ConsumerWidget {
               total: QuizController.questionCount,
               wrongPokemons: next.wrongPokemons,
               newlyFound: next.newlyFound.length,
+              score: next.score,
             ),
           ),
         );
@@ -124,6 +126,14 @@ class QuizScreen extends ConsumerWidget {
             correct: state.isCorrect,
           )
         : null;
+    // 正解したときの「+250」（問題ごとに最初から動かす）
+    final popup = answered && state.lastPoints != null
+        ? PointsPopup(
+            key: ValueKey(('points', state.questionNumber)),
+            points: state.lastPoints!,
+            streak: state.streak,
+          )
+        : null;
 
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
@@ -156,6 +166,7 @@ class QuizScreen extends ConsumerWidget {
                     onChoose: answered ? null : onChoose,
                   ),
                   ?effect,
+                  ?popup,
                 ],
               ),
             ),
@@ -178,6 +189,7 @@ class QuizScreen extends ConsumerWidget {
                       ),
                     ),
                     ?effect,
+                    ?popup,
                   ],
                 ),
               ),
