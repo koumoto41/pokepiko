@@ -46,7 +46,7 @@ SCREENSHOT_DIR=<保存先> flutter drive --driver=test_driver/integration_test.d
 
 - `screenshot_test.dart`（なまえクイズ）と `screenshot_type_quiz_test.dart`（タイプクイズ）がある。本物の PokéAPI を使う。
 - 初回ビルドは数分かかるので、バックグラウンドで実行してログをファイルに残す。
-- `flutter drive` は終了時にシミュレーターからアプリを削除する（保存データも消える）。
+- `flutter drive` は終了時にシミュレーターからアプリを削除する。ただし shared_preferences の保存データ（設定・ハイスコア・図鑑の記録など）は、次の実行に残ることがある。まっさらな状態を前提にしたテストを書かない。
 - 画面の切りかわりアニメーション中のタップは無視されるので、遷移のあとは `wait` を入れてから押す。
 
 ## アーキテクチャ
