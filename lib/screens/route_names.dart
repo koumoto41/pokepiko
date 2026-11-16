@@ -6,4 +6,5 @@ abstract final class RouteNames {
   static const result = 'result';
   static const zukan = 'zukan';
   static const zukanDetail = 'zukanDetail';
+  static const typeChart = 'typeChart';
 }

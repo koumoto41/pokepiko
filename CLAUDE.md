@@ -44,7 +44,7 @@ iPhone SE（第3世代）のシミュレーターは ID `B0AA6DCC-29B3-4D75-BE70
 SCREENSHOT_DIR=<保存先> flutter drive --driver=test_driver/integration_test.dart --target=integration_test/screenshot_test.dart -d B0AA6DCC-29B3-4D75-BE70-111FF69E85A0
 ```
 
-- `integration_test/screenshot_*_test.dart` がある（なまえクイズ・タイプクイズ・図鑑・進化のお祝い・全問正解・タイトル）。本物の PokéAPI を使う。
+- `integration_test/screenshot_*_test.dart` がある（なまえクイズ・タイプクイズ・図鑑・進化のお祝い・全問正解・タイトル・でんせつ・タイプの相性）。本物の PokéAPI を使う。
 - 大きい画面の確認は iPhone 18 Pro Max（ID `1D0DE787-1E81-4FF4-9346-47D35B2959A6`）。ユーザーが iPhone 18 Pro を使っていることがあるので、そちらでは撮らない。
 - 音が鳴るかは聞けないので、`AudioPlayer` で `AssetSource` を再生して `state == playing` と長さ（`getDuration`）を確かめる。鳴き声は `SoLoud` で `loadFile` → `play` して確かめる。
 - 初回ビルドは数分かかるので、バックグラウンドで実行してログをファイルに残す。
@@ -110,6 +110,11 @@ SCREENSHOT_DIR=<保存先> flutter drive --driver=test_driver/integration_test.d
 - 図鑑では、みつけた伝説・幻に `SpecialBadge`（でんせつ＝金色、まぼろし＝むらさき）をつける。
 - シルエットのクイズで伝説・幻をはじめて見つけたら、結果画面を開いて1.5秒後に `LegendaryFoundDialog` でお祝いする（でんせつクイズで全問正解すると、一度に10匹見つけることもある）。
 
+### タイプの相性（`lib/screens/type_chart_screen.dart`, `lib/models/type_chart.dart`）
+
+- タイトル画面の「タイプ」から開く。「えらんで みる」（タイプを1つ選ぶと、こうげき・うけるの相手を倍率ごとに出す。子ども向け）と「ひょう」（たて＝こうげきする わざ、よこ＝うける ポケモンの 18×18。保護者向け）の2つのタブ。
+- 相性は `tool/make_type_chart.py` が PokéAPI の `/type/{name}` の `damage_relations`（中身は `{name, url}`）から作った一覧をアプリに持っている。書いていない組み合わせは1倍。相性が変わったら作り直す。
+
 ### 結果画面（`lib/screens/result_screen.dart`）
 
 - `ResultRank`（全問／8割以上／5割以上／それ以外）が、星の数・ほめ言葉・鳴らす曲をまとめて持つ。星は最低でも1つ、0〜4問の曲も悲しくしない。
@@ -118,8 +123,8 @@ SCREENSHOT_DIR=<保存先> flutter drive --driver=test_driver/integration_test.d
 
 ### 画面と音
 
-- 画面遷移：タイトル → 設定 → クイズ → 結果、タイトル → 図鑑 → くわしいページ。ルートには `RouteNames` の名前をつける。BGM は各画面ではなく `BgmNavigatorObserver` が、一番上のルート名から切りかえる（ダイアログは無視）。新しい画面を追加したら名前と BGM の対応を足す。
-- BGM：タイトルは `Bgm.home`（昔の携帯ゲーム機風）、設定は `Bgm.title`（メニュー）、クイズは `Bgm.quiz`、図鑑は `Bgm.zukan`（オルゴールのワルツ）、結果画面は BGM なし。
+- 画面遷移：タイトル → 設定 → クイズ → 結果、タイトル → 図鑑 → くわしいページ、タイトル → タイプの相性。ルートには `RouteNames` の名前をつける。BGM は各画面ではなく `BgmNavigatorObserver` が、一番上のルート名から切りかえる（ダイアログは無視）。新しい画面を追加したら名前と BGM の対応を足す。
+- BGM：タイトルは `Bgm.home`（昔の携帯ゲーム機風）、設定は `Bgm.title`（メニュー）、クイズは `Bgm.quiz`、図鑑とタイプの相性は `Bgm.zukan`（オルゴールのワルツ）、結果画面は BGM なし。
 - タイトル画面は、図鑑でみつけたポケモン（0匹なら設定画面の代表9匹）から主役を1匹選び（押すと別のポケモンに入れかわる）、背景にシルエットを漂わせる（`lib/screens/widgets/title_decorations.dart`）。ずっと動き続けるので、テストでは `pumpAndSettle` を使わない。
 - 音は iPhone のマナーモード（サイレントスイッチ）に従う：`main()` で `SoundService.followSilentSwitch()` を呼び、audioplayers 全体を `respectSilence`（`ambient`）にしている。audioplayers は何もしないと `playback`（マナーモードでも鳴る）になる。`flutter_soloud` は音の設定をアプリに任せる作りなので、鳴き声もこれに従う。シミュレーターにはスイッチがないので、鳴らないことは実機で確かめる。
 - 動きのある演出は、iPhone の「動きを減らす」（`MediaQuery.disableAnimationsOf`）のときは出さない・止める。

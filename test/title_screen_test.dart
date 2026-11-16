@@ -109,4 +109,14 @@ void main() {
       isIn([for (final g in Generation.all) g.mascotId]),
     );
   });
+
+  testWidgets('「タイプ」ボタンで、タイプの相性の画面が開く', (tester) async {
+    await pumpTitle(tester, found: {4});
+    expect(find.text('ずかん'), findsOneWidget);
+    await tester.tap(find.text('タイプ'));
+    for (var i = 0; i < 5; i++) {
+      await tester.pump(const Duration(milliseconds: 200));
+    }
+    expect(find.text('タイプの あいしょう'), findsOneWidget);
+  });
 }

@@ -10,6 +10,7 @@ import '../providers/collection_provider.dart';
 import '../providers/high_score_provider.dart';
 import 'route_names.dart';
 import 'settings_screen.dart';
+import 'type_chart_screen.dart';
 import 'widgets/title_decorations.dart';
 import 'zukan_screen.dart';
 
@@ -149,17 +150,30 @@ class _TitleScreenState extends ConsumerState<TitleScreen> {
                       ),
                     ),
                     const SizedBox(height: 12),
+                    // 「ずかん」と「タイプ」を横に並べる（SE でも縦にはみ出さないように）
                     SizedBox(
-                      width: double.infinity,
                       height: 64,
-                      child: OutlinedButton.icon(
-                        style: OutlinedButton.styleFrom(
-                          backgroundColor: Colors.white.withValues(alpha: 0.7),
-                        ),
-                        onPressed: () =>
-                            Navigator.of(context).push(zukanRoute()),
-                        icon: const Icon(Icons.menu_book, size: 32),
-                        label: const Text('ずかん'),
+                      child: Row(
+                        children: [
+                          Expanded(
+                            child: _SubButton(
+                              icon: Icons.menu_book,
+                              label: 'ずかん',
+                              onPressed: () =>
+                                  Navigator.of(context).push(zukanRoute()),
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: _SubButton(
+                              icon: Icons.local_fire_department,
+                              label: 'タイプ',
+                              onPressed: () =>
+                                  Navigator.of(context)
+                                      .push(TypeChartScreen.route()),
+                            ),
+                          ),
+                        ],
                       ),
                     ),
                     SizedBox(height: compact ? 8 : 32),
@@ -252,4 +266,31 @@ class _HighScores extends ConsumerWidget {
       child: Text(text, style: style),
     ),
   );
+}
+
+/// 「ずかん」「タイプ」の、白いふちどりのボタン
+class _SubButton extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final VoidCallback onPressed;
+
+  const _SubButton({
+    required this.icon,
+    required this.label,
+    required this.onPressed,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return OutlinedButton.icon(
+      style: OutlinedButton.styleFrom(
+        backgroundColor: Colors.white.withValues(alpha: 0.7),
+        padding: const EdgeInsets.symmetric(horizontal: 8),
+      ),
+      onPressed: onPressed,
+      icon: Icon(icon, size: 28),
+      // 小さい画面でも1行に収める
+      label: FittedBox(fit: BoxFit.scaleDown, child: Text(label)),
+    );
+  }
 }

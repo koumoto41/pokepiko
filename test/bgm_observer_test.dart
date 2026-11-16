@@ -83,6 +83,12 @@ void main() {
     navigator.push(page(RouteNames.zukanDetail));
     await tester.pumpAndSettle();
     expect(sound.playing, Bgm.zukan);
+    // タイプの相性も、図鑑と同じ曲
+    navigator.push(page(RouteNames.typeChart));
+    await tester.pumpAndSettle();
+    expect(sound.playing, Bgm.zukan);
+    navigator.pop();
+    await tester.pumpAndSettle();
     navigator
       ..pop()
       ..pop();
