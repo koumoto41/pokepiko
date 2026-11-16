@@ -271,7 +271,9 @@ class QuizController extends Notifier<QuizState> {
     required bool offline,
   }) async {
     final question = await switch (_variant) {
-      QuizVariant.name => _createNameQuestion(pool, offline),
+      // でんせつクイズも、出しかたはなまえクイズと同じ（候補が伝説・幻だけになる）
+      QuizVariant.name ||
+      QuizVariant.legendary => _createNameQuestion(pool, offline),
       QuizVariant.pokemonToType => _createPokemonToTypeQuestion(pool, offline),
       QuizVariant.typeToPokemon => _createTypeToPokemonQuestion(pool, offline),
     };
@@ -301,7 +303,7 @@ class QuizController extends Notifier<QuizState> {
     }
     final choices = [answer, ...others]..shuffle(_random);
     return Question(
-      variant: QuizVariant.name,
+      variant: _variant, // なまえ か でんせつ
       pokemon: answer,
       pokemonChoices: choices,
       correctIndex: choices.indexOf(answer),

@@ -66,7 +66,8 @@ SCREENSHOT_DIR=<保存先> flutter drive --driver=test_driver/integration_test.d
 
 `QuizSettings`（`lib/models/quiz_settings.dart`）の組み合わせで遊ぶクイズが決まる：
 
-- `QuizKind`（なまえ／タイプ）＋ `TypeDirection`（ポケモン→タイプ／タイプ→ポケモン）→ `QuizVariant`（3種類）
+- `QuizKind`（なまえ／タイプ／でんせつ）＋ `TypeDirection`（ポケモン→タイプ／タイプ→ポケモン）→ `QuizVariant`（4種類）
+- でんせつクイズは、伝説・幻だけのなまえクイズ。世代の選択に関係なく全世代の伝説・幻から出す（第1世代だけだと5匹しかいないため）。
 - `QuizMode`：画像の見せかた（イラスト／ドット／シルエット）。どのクイズでも使う
 - `generations`：出題する世代（`Generation.all` に図鑑番号の範囲を固定で持つ）
 
@@ -102,6 +103,12 @@ SCREENSHOT_DIR=<保存先> flutter drive --driver=test_driver/integration_test.d
 - 進化は段階ごとの図鑑番号（`[[172], [25], [26]]`。枝分かれは同じ段に並べる）。`PokeApiClient` は進化のつながりを URL ごとに使い回す。
 - 進化の仲間（2匹以上）が全員みつかったら、図鑑を開いたときにお祝いする（`completedFamiliesProvider` → `takeNewlyCompletedFamilies`）。判定は保存済みの図鑑データだけを使う（`cachedDexEntry`。オフラインで遅くならないように）。お知らせ済みは `collection.announcedFamilies` に記録し、同じ仲間は1回だけ。
 - 鳴き声は PokéAPI では OGG（一部は拡張子が .ogg で中身が MP3）。iOS の標準機能（audioplayers）では OGG を再生できないので、鳴き声だけ `flutter_soloud`（5.2.2 に固定）の `CryPlayer` で鳴らす。
+
+### 伝説・幻（`lib/models/legendary.dart`）
+
+- どのポケモンが伝説（71匹）・幻（23匹）かは、`tool/make_legendary_list.py` が PokéAPI の `is_legendary` / `is_mythical` から作った一覧をアプリに持っている（オフラインでも使え、保存データの取り直しもいらない）。新しいポケモンが増えたら作り直す。PokéAPI は Python の標準の User-Agent だと 403 を返すので、スクリプトでは名前をつけている。
+- 図鑑では、みつけた伝説・幻に `SpecialBadge`（でんせつ＝金色、まぼろし＝むらさき）をつける。
+- シルエットのクイズで伝説・幻をはじめて見つけたら、結果画面を開いて1.5秒後に `LegendaryFoundDialog` でお祝いする（でんせつクイズで全問正解すると、一度に10匹見つけることもある）。
 
 ### 結果画面（`lib/screens/result_screen.dart`）
 

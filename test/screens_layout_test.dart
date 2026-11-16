@@ -204,6 +204,17 @@ void main() {
       await tester.pumpAndSettle();
       expect(find.text('ポケモン→タイプ'), findsOneWidget);
       expect(find.text('タイプ→ポケモン'), findsOneWidget);
+
+      // でんせつクイズを選ぶと、世代は押せなくなり、全世代から出ると案内する
+      await tester.tap(find.text('でんせつクイズ'));
+      await tester.pumpAndSettle();
+      expect(find.textContaining('ぜんぶの せだいから でるよ'), findsOneWidget);
+      expect(
+        tester
+            .widgetList<IgnorePointer>(find.byType(IgnorePointer))
+            .any((w) => w.ignoring),
+        isTrue,
+      );
     });
   }
 

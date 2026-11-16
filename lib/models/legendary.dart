@@ -1,0 +1,116 @@
+// このファイルは tool/make_legendary_list.py で作ったもの（手で直さない）
+// PokéAPI の /pokemon-species の is_legendary・is_mythical から集めた図鑑番号
+
+/// 伝説・幻のポケモン
+abstract final class Legendary {
+  /// 伝説のポケモン（71匹）
+  static const legendary = {
+    144,
+    145,
+    146,
+    150,
+    243,
+    244,
+    245,
+    249,
+    250,
+    377,
+    378,
+    379,
+    380,
+    381,
+    382,
+    383,
+    384,
+    480,
+    481,
+    482,
+    483,
+    484,
+    485,
+    486,
+    487,
+    488,
+    638,
+    639,
+    640,
+    641,
+    642,
+    643,
+    644,
+    645,
+    646,
+    716,
+    717,
+    718,
+    772,
+    773,
+    785,
+    786,
+    787,
+    788,
+    789,
+    790,
+    791,
+    792,
+    800,
+    888,
+    889,
+    890,
+    891,
+    892,
+    894,
+    895,
+    896,
+    897,
+    898,
+    905,
+    1001,
+    1002,
+    1003,
+    1004,
+    1007,
+    1008,
+    1014,
+    1015,
+    1016,
+    1017,
+    1024,
+  };
+
+  /// 幻のポケモン（23匹）
+  static const mythical = {
+    151,
+    251,
+    385,
+    386,
+    489,
+    490,
+    491,
+    492,
+    493,
+    494,
+    647,
+    648,
+    649,
+    719,
+    720,
+    721,
+    801,
+    802,
+    807,
+    808,
+    809,
+    893,
+    1025,
+  };
+
+  static bool isLegendary(int id) => legendary.contains(id);
+  static bool isMythical(int id) => mythical.contains(id);
+
+  /// 伝説か幻のどちらか
+  static bool isSpecial(int id) => isLegendary(id) || isMythical(id);
+
+  /// 伝説・幻をあわせた一覧（番号の順）。でんせつクイズの出題の候補
+  static final all = [...legendary, ...mythical]..sort();
+}

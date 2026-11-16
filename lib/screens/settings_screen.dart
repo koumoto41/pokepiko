@@ -24,10 +24,12 @@ class SettingsScreen extends ConsumerWidget {
   static const _kindIcons = {
     QuizKind.name: Icons.badge,
     QuizKind.type: Icons.local_fire_department,
+    QuizKind.legendary: Icons.auto_awesome,
   };
   static const _kindColors = {
     QuizKind.name: Colors.teal,
     QuizKind.type: Colors.deepPurple,
+    QuizKind.legendary: Color(0xFFF9A825), // 金色
   };
   static const _modeColors = {
     QuizMode.illustration: Colors.orange,
@@ -40,6 +42,7 @@ class SettingsScreen extends ConsumerWidget {
     final settings = ref.watch(settingsProvider);
     final controller = ref.read(settingsProvider.notifier);
     final allSelected = settings.generations.length == Generation.all.length;
+    final legendaryQuiz = settings.kind == QuizKind.legendary;
 
     return GradientBackground(
       colors: const [Color(0xFFC8E6C9), AppColors.cream], // 若草色 → クリーム色
@@ -69,26 +72,39 @@ class SettingsScreen extends ConsumerWidget {
                     ),
                     const SizedBox(height: 8),
                     // 世代を3列のタイルで並べる
-                    GridView.count(
-                      crossAxisCount: 3,
-                      shrinkWrap: true, // ListView の中に入れるため
-                      physics: const NeverScrollableScrollPhysics(),
-                      mainAxisSpacing: 8,
-                      crossAxisSpacing: 8,
-                      // 横長のタイル（左に絵、右に数字）。縦の幅を節約して、SE でもモードまで見えるように
-                      childAspectRatio: 1.6,
-                      children: [
-                        for (final g in Generation.all)
-                          _GenerationTile(
-                            generation: g,
-                            selected: settings.generations.contains(g.number),
-                            onTap: () => controller.toggleGeneration(g.number),
-                          ),
-                      ],
+                    // でんせつクイズは世代に関係なく出すので、うすくして押せないようにする
+                    IgnorePointer(
+                      ignoring: legendaryQuiz,
+                      child: Opacity(
+                        opacity: legendaryQuiz ? 0.35 : 1,
+                        child: GridView.count(
+                          crossAxisCount: 3,
+                          shrinkWrap: true, // ListView の中に入れるため
+                          physics: const NeverScrollableScrollPhysics(),
+                          mainAxisSpacing: 8,
+                          crossAxisSpacing: 8,
+                          // 横長のタイル（左に絵、右に数字）。縦の幅を節約して、SE でもモードまで見えるように
+                          childAspectRatio: 1.6,
+                          children: [
+                            for (final g in Generation.all)
+                              _GenerationTile(
+                                generation: g,
+                                selected: settings.generations.contains(
+                                  g.number,
+                                ),
+                                onTap: () =>
+                                    controller.toggleGeneration(g.number),
+                              ),
+                          ],
+                        ),
+                      ),
                     ),
                     const SizedBox(height: 8),
                     Text(
-                      '${settings.candidateIds.length} ひきから しゅつだい',
+                      legendaryQuiz
+                          ? 'でんせつクイズは ぜんぶの せだいから でるよ'
+                                '（${settings.candidateIds.length} ひき）'
+                          : '${settings.candidateIds.length} ひきから しゅつだい',
                       textAlign: TextAlign.center,
                       style: const TextStyle(fontSize: 16),
                     ),

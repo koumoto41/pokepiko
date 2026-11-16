@@ -1,4 +1,5 @@
 import 'generation.dart';
+import 'legendary.dart';
 
 /// 画像の見せかた
 enum QuizMode {
@@ -13,7 +14,8 @@ enum QuizMode {
 /// クイズの種類
 enum QuizKind {
   name('なまえ'), // ポケモンの名前を当てる
-  type('タイプ'); // ポケモンのタイプを当てる
+  type('タイプ'), // ポケモンのタイプを当てる
+  legendary('でんせつ'); // 伝説・幻だけの、名前を当てるクイズ
 
   final String label;
   const QuizKind(this.label);
@@ -32,7 +34,8 @@ enum TypeDirection {
 enum QuizVariant {
   name('なまえ'),
   pokemonToType('ポケモン→タイプ'),
-  typeToPokemon('タイプ→ポケモン');
+  typeToPokemon('タイプ→ポケモン'),
+  legendary('でんせつ');
 
   final String label;
   const QuizVariant(this.label);
@@ -73,15 +76,20 @@ class QuizSettings {
   /// いまの設定で遊ぶクイズ
   QuizVariant get variant => switch (kind) {
     QuizKind.name => QuizVariant.name,
+    QuizKind.legendary => QuizVariant.legendary,
     QuizKind.type => switch (typeDirection) {
       TypeDirection.pokemonToType => QuizVariant.pokemonToType,
       TypeDirection.typeToPokemon => QuizVariant.typeToPokemon,
     },
   };
 
-  /// 選んだ世代に含まれる図鑑番号をすべて並べたもの（出題の候補）
-  List<int> get candidateIds => [
-    for (final g in Generation.all)
-      if (generations.contains(g.number)) ...g.ids,
-  ];
+  /// 出題の候補になる図鑑番号
+  /// でんせつクイズは、世代の選択に関係なく、全世代の伝説・幻から出す
+  /// （第1世代だけだと5匹しかいなくて、10問のクイズが作れないため）
+  List<int> get candidateIds => kind == QuizKind.legendary
+      ? Legendary.all
+      : [
+          for (final g in Generation.all)
+            if (generations.contains(g.number)) ...g.ids,
+        ];
 }

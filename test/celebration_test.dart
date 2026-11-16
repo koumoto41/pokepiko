@@ -23,6 +23,7 @@ void main() {
   Future<void> pumpResult(
     WidgetTester tester,
     int correct, {
+    List<Pokemon> legendsFound = const [],
     bool disableAnimations = false,
     Size size = const Size(375, 667), // iPhone SE
   }) async {
@@ -56,6 +57,7 @@ void main() {
               for (var i = 0; i < 10 - correct; i++)
                 Pokemon(id: i + 1, name: 'P${i + 1}'),
             ],
+            legendsFound: legendsFound,
           ),
         ),
       ),
@@ -148,6 +150,61 @@ void main() {
           reason: rank.jingle,
         );
       }
+    });
+  });
+
+  group('伝説・幻を見つけたときのお祝い', () {
+    testWidgets('結果を少し見せてから、特別なお祝いとファンファーレ', (tester) async {
+      await pumpResult(
+        tester,
+        7,
+        legendsFound: const [Pokemon(id: 150, name: 'ミュウツー')],
+      );
+      expect(find.textContaining('みつけた！'), findsNothing); // まだ出ない
+      await tester.pump(const Duration(seconds: 1));
+      expect(find.text('でんせつの ポケモンを\nみつけた！'), findsOneWidget);
+      expect(find.text('ミュウツー'), findsOneWidget);
+      expect(sound.jingles.last, 'se/result_perfect.wav');
+      await tester.tap(find.text('やったね！'));
+      await tester.pump(const Duration(milliseconds: 500));
+      expect(find.textContaining('みつけた！'), findsNothing);
+    });
+
+    testWidgets('幻のときは「まぼろしの ポケモン」', (tester) async {
+      await pumpResult(
+        tester,
+        7,
+        legendsFound: const [Pokemon(id: 151, name: 'ミュウ')],
+      );
+      await tester.pump(const Duration(seconds: 1));
+      expect(find.text('まぼろしの ポケモンを\nみつけた！'), findsOneWidget);
+      await tester.tap(find.text('やったね！'));
+      await tester.pump(const Duration(milliseconds: 500));
+    });
+
+    testWidgets('一度に10匹見つけても、はみ出さない（ほかの子は横に並ぶ）', (tester) async {
+      await pumpResult(
+        tester,
+        10,
+        legendsFound: [
+          for (final id in [144, 145, 146, 150, 151, 243, 244, 245, 249, 250])
+            Pokemon(id: id, name: 'L$id'),
+        ],
+      );
+      await tester.pump(const Duration(seconds: 1));
+      expect(find.text('ほかにも 9ひき！'), findsOneWidget);
+      expect(tester.takeException(), isNull); // はみ出しのエラーがない
+      // 「やったね！」は画面の中に見えている
+      final button = tester.getRect(find.text('やったね！'));
+      expect(button.bottom, lessThan(667));
+      await tester.tap(find.text('やったね！'));
+      await tester.pump(Celebration.duration);
+    });
+
+    testWidgets('見つけていなければ出ない', (tester) async {
+      await pumpResult(tester, 7);
+      await tester.pump(const Duration(seconds: 2));
+      expect(find.textContaining('みつけた！'), findsNothing);
     });
   });
 }

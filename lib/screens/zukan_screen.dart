@@ -9,6 +9,7 @@ import '../providers/data_providers.dart';
 import 'route_names.dart';
 import 'widgets/cached_image.dart';
 import 'widgets/family_complete_dialog.dart';
+import 'widgets/legendary_widgets.dart';
 import 'zukan_detail_screen.dart';
 
 /// 図鑑の一覧：世代を選んで、その世代のポケモンを並べる
@@ -296,6 +297,12 @@ class _ZukanTile extends ConsumerWidget {
                         url: PokeApiClient.artworkUrl(id),
                         error: const Icon(Icons.help_outline, size: 32),
                       ),
+                    ),
+                    // 伝説・幻は、左上に札
+                    Positioned(
+                      top: 0,
+                      left: 0,
+                      child: SpecialBadge(id: id, fontSize: 9),
                     ),
                     // 進化の仲間がそろったら、右上に王冠
                     if (complete)

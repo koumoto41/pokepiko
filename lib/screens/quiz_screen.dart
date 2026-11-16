@@ -2,6 +2,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:material_ui/material_ui.dart';
 
 import '../app_theme.dart';
+import '../models/legendary.dart';
 import '../models/question.dart';
 import '../models/quiz_settings.dart';
 import '../providers/quiz_controller.dart';
@@ -26,6 +27,7 @@ class QuizScreen extends ConsumerWidget {
     QuizVariant.name: 'このポケモン だーれだ？',
     QuizVariant.pokemonToType: 'このポケモンの タイプは？',
     QuizVariant.typeToPokemon: 'このタイプの ポケモンは？',
+    QuizVariant.legendary: 'このでんせつポケモン だーれだ？',
   };
 
   @override
@@ -55,6 +57,10 @@ class QuizScreen extends ConsumerWidget {
               wrongPokemons: next.wrongPokemons,
               newlyFound: next.newlyFound.length,
               score: next.score,
+              legendsFound: [
+                for (final p in next.newlyFound)
+                  if (Legendary.isSpecial(p.id)) p,
+              ],
             ),
           ),
         );
@@ -306,7 +312,8 @@ class _Message extends StatelessWidget {
     final pokemon = question.pokemon;
 
     final text = switch (question.variant) {
-      QuizVariant.name => state.isCorrect ? 'せいかい！' : 'こたえは ${pokemon.name}',
+      QuizVariant.name || QuizVariant.legendary =>
+        state.isCorrect ? 'せいかい！' : 'こたえは ${pokemon.name}',
       // タイプは2つあることもあるので、両方教える
       QuizVariant.pokemonToType =>
         '${state.isCorrect ? 'せいかい！ ' : ''}'

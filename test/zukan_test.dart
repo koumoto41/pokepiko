@@ -182,6 +182,33 @@ void main() {
       await tester.pumpAndSettle();
     }
 
+    group('でんせつ・まぼろしの札', () {
+      testWidgets('一覧：みつけた伝説・幻に札が出る（ふつうのポケモンには出ない）', (tester) async {
+        // 150 ミュウツー（伝説）・151 ミュウ（幻）・149 カイリュー（ふつう）
+        await pumpApp(
+          tester,
+          sizes['iPhone SE']!,
+          const ZukanScreen(),
+          found: {149, 150, 151},
+          // 一覧の下のほうなので、みつけた だけにして見えるところに並べる
+        );
+        await tester.tap(find.text('みつけた だけ'));
+        await tester.pumpAndSettle();
+        expect(find.text('でんせつ'), findsOneWidget);
+        expect(find.text('まぼろし'), findsOneWidget);
+      });
+
+      testWidgets('くわしいページ：タイプの横に札が出る', (tester) async {
+        await pumpApp(
+          tester,
+          sizes['iPhone SE']!,
+          const ZukanDetailScreen(id: 151),
+          found: {151},
+        );
+        expect(find.text('まぼろし'), findsOneWidget);
+      });
+    });
+
     group('くわしいページの絵', () {
       String shownUrl(WidgetTester tester) {
         // いま画面のまん中に見えている絵の URL

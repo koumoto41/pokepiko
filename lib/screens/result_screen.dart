@@ -11,6 +11,7 @@ import 'quiz_screen.dart';
 import 'route_names.dart';
 import 'widgets/cached_image.dart';
 import 'widgets/celebration.dart';
+import 'widgets/legendary_widgets.dart';
 import 'widgets/type_badge.dart';
 
 /// 正解数の段（10問なら 全問／8〜9／5〜7／0〜4 の4段階）
@@ -48,6 +49,7 @@ class ResultScreen extends ConsumerStatefulWidget {
   final List<Pokemon> wrongPokemons;
   final int newlyFound; // このゲームで図鑑にはじめて入ったポケモンの数
   final Score score; // 点数（ハイスコアはこれで記録する）
+  final List<Pokemon> legendsFound; // このゲームで、はじめて見つけた伝説・幻
 
   const ResultScreen({
     super.key,
@@ -58,6 +60,7 @@ class ResultScreen extends ConsumerStatefulWidget {
     required this.wrongPokemons,
     this.newlyFound = 0,
     this.score = const Score(),
+    this.legendsFound = const [],
   });
 
   @override
@@ -85,6 +88,16 @@ class _ResultScreenState extends ConsumerState<ResultScreen> {
     ref
         .read(soundServiceProvider)
         .playJingle(ResultRank.of(widget.correctCount, widget.total).jingle);
+    // 伝説・幻をはじめて見つけていたら、結果を少し見せてから特別なお祝い
+    if (widget.legendsFound.isNotEmpty) {
+      Future.delayed(const Duration(milliseconds: 1500), () {
+        if (!mounted) return;
+        showDialog<void>(
+          context: context,
+          builder: (_) => LegendaryFoundDialog(pokemons: widget.legendsFound),
+        );
+      });
+    }
   }
 
   @override
