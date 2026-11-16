@@ -17,6 +17,23 @@ enum Bgm {
 class SoundService {
   static const _bgmVolume = 0.35; // 効果音より小さめ
 
+  /// iPhone のマナーモード（サイレントスイッチ）に従う音の設定
+  /// audioplayers は何もしないと「マナーモードでも鳴る」設定（playback）になるので、
+  /// respectSilence で「マナーモードでは鳴らさない」設定（ambient）にする
+  /// （画面をロックしたときも止まる。ほかのアプリの音楽はとめずに、まぜて鳴る）
+  static AudioContext get silentSwitchAwareContext =>
+      AudioContextConfig(respectSilence: true).build();
+
+  /// アプリ全体の音の設定をする（音を鳴らす前に、起動時に1回だけ）
+  /// 鳴き声（flutter_soloud）は音の設定をアプリに任せる作りなので、これに従う
+  static Future<void> followSilentSwitch() async {
+    try {
+      await AudioPlayer.global.setAudioContext(silentSwitchAwareContext);
+    } catch (e) {
+      debugPrint('音の設定ができませんでした: $e');
+    }
+  }
+
   final _bgmPlayer = AudioPlayer();
   final _sePlayer = AudioPlayer();
   final _jinglePlayer = AudioPlayer(); // 結果画面の曲（BGM とは別にする）
