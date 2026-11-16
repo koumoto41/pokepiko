@@ -11,6 +11,7 @@ import '../providers/settings_provider.dart';
 import '../providers/sound_provider.dart';
 import 'route_names.dart';
 import 'widgets/cached_image.dart';
+import 'widgets/legendary_widgets.dart';
 import 'widgets/trimmed_sprite.dart';
 import 'widgets/type_badge.dart';
 
@@ -101,9 +102,15 @@ class _DetailBody extends ConsumerWidget {
           ],
         ),
         const SizedBox(height: 4),
-        Align(
-          alignment: Alignment.centerLeft,
-          child: TypeBadges(types: pokemon.types, fontSize: 18),
+        // タイプと、伝説・幻の札（入りきらなければ次の行へ）
+        Wrap(
+          spacing: 6,
+          runSpacing: 4,
+          crossAxisAlignment: WrapCrossAlignment.center,
+          children: [
+            TypeBadges(types: pokemon.types, fontSize: 18),
+            SpecialBadge(id: pokemon.id, fontSize: 16),
+          ],
         ),
         const SizedBox(height: 12),
         Card(

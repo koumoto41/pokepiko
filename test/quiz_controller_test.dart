@@ -1,5 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:pokepiko/models/legendary.dart';
 import 'package:pokepiko/models/question.dart';
 import 'package:pokepiko/models/quiz_settings.dart';
 import 'package:pokepiko/providers/data_providers.dart';
@@ -35,6 +36,8 @@ void main() {
         settings
           ..setKind(QuizKind.type)
           ..setTypeDirection(TypeDirection.typeToPokemon);
+      case QuizVariant.legendary:
+        settings.setKind(QuizKind.legendary);
     }
     // autoDispose の Provider が勝手に捨てられないよう、見張っておく
     container.listen(quizControllerProvider, (_, _) {});
@@ -294,6 +297,26 @@ void main() {
       await tester.pump(const Duration(seconds: 30));
       expect(read().isCorrect, isFalse);
       expect(read().score.total, 0);
+      container.dispose();
+    });
+  });
+
+  group('でんせつクイズ', () {
+    testWidgets('選んだ世代に関係なく、全世代の伝説・幻だけが出る', (tester) async {
+      setUpContainer(variant: QuizVariant.legendary);
+      // 世代は第1世代だけ（伝説・幻は5匹しかいない）のままでも、10問作れる
+      expect(container.read(settingsProvider).generations, {1});
+      final answers = <int>{};
+      await playAll(tester, (q) {
+        expect(q.variant, QuizVariant.legendary);
+        for (final p in q.pokemonChoices) {
+          expect(Legendary.isSpecial(p.id), isTrue, reason: '${p.id}');
+        }
+        answers.add(q.pokemon.id);
+      });
+      expect(answers.length, 10);
+      // 第1世代の外の伝説・幻も出ている（全世代から出す）
+      expect(answers.any((id) => id > 151), isTrue);
       container.dispose();
     });
   });
