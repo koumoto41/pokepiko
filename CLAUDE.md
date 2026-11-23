@@ -44,7 +44,7 @@ iPhone SE（第3世代）のシミュレーターは ID `B0AA6DCC-29B3-4D75-BE70
 SCREENSHOT_DIR=<保存先> flutter drive --driver=test_driver/integration_test.dart --target=integration_test/screenshot_test.dart -d B0AA6DCC-29B3-4D75-BE70-111FF69E85A0
 ```
 
-- `integration_test/screenshot_*_test.dart` がある（なまえクイズ・タイプクイズ・あいしょうクイズ・図鑑・進化のお祝い・全問正解・タイトル・でんせつ・タイプの相性・図鑑かんせい）。本物の PokéAPI を使う。
+- `integration_test/screenshot_*_test.dart` がある（なまえクイズ・タイプクイズ・あいしょうクイズ・図鑑・進化のお祝い・全問正解・タイトル・でんせつ・タイプの相性・図鑑かんせい・メガシンカ）。本物の PokéAPI を使う。
 - 大きい画面の確認は iPhone 18 Pro Max（ID `1D0DE787-1E81-4FF4-9346-47D35B2959A6`）。ユーザーが iPhone 18 Pro を使っていることがあるので、そちらでは撮らない。
 - 音が鳴るかは聞けないので、`AudioPlayer` で `AssetSource` を再生して `state == playing` と長さ（`getDuration`）を確かめる。鳴き声は `SoLoud` で `loadFile` → `play` して確かめる。
 - 初回ビルドは数分かかるので、バックグラウンドで実行してログをファイルに残す。
@@ -112,6 +112,13 @@ SCREENSHOT_DIR=<保存先> flutter drive --driver=test_driver/integration_test.d
 - どのポケモンが伝説（71匹）・幻（23匹）かは、`tool/make_legendary_list.py` が PokéAPI の `is_legendary` / `is_mythical` から作った一覧をアプリに持っている（オフラインでも使え、保存データの取り直しもいらない）。新しいポケモンが増えたら作り直す。PokéAPI は Python の標準の User-Agent だと 403 を返すので、スクリプトでは名前をつけている。
 - 図鑑では、みつけた伝説・幻に `SpecialBadge`（でんせつ＝金色、まぼろし＝むらさき）をつける。
 - シルエットのクイズで伝説・幻をはじめて見つけたら、結果画面を開いて1.5秒後に `LegendaryFoundDialog` でお祝いする（でんせつクイズで全問正解すると、一度に10匹見つけることもある）。
+
+### メガシンカ（`lib/models/mega.dart`）
+
+- 図鑑のくわしいページに「メガシンカ」の欄を出す（すがたが1つなら大きく、X・Y など2つ以上なら横に並べる）。
+- メガシンカの名前・タイプ・番号（10000番台）は、`tool/make_mega_list.py` が PokéAPI の `/pokemon`（名前に `-mega`）と `/pokemon-form`（`is_mega`・`form_names` の `ja-hrkt`）から作った一覧をアプリに持っている。名前の全角のＸ・Ｙ・Ｚは半角にそろえる。新しいメガシンカが増えたら作り直す。
+- ニャオニクス（オス・メス）・マギアナ・シャリタツは、API の日本語名が同じなので、同じ名前のすがたが並ぶ（絵はちがう）。
+- 絵は `PokeApiClient.artworkUrl(メガシンカの番号)`。`downloadDex` で図鑑データといっしょに保存し、オフラインでも見られるようにする。
 
 ### タイプの相性（`lib/screens/type_chart_screen.dart`, `lib/models/type_chart.dart`）
 

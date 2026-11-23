@@ -425,6 +425,36 @@ void main() {
         expect(find.text('No.0005'), findsOneWidget);
         expect(find.text('漢字の説明 5'), findsOneWidget);
       });
+
+      testWidgets('$name: メガシンカするポケモンは、メガシンカの すがたも出る', (tester) async {
+        // リザードン（メガシンカX・Y）
+        await pumpApp(tester, size, const ZukanDetailScreen(id: 6), found: {6});
+        final list = find.byType(Scrollable).first;
+        await tester.scrollUntilVisible(
+          find.text('メガリザードンY'),
+          200,
+          scrollable: list,
+        );
+        await tester.pumpAndSettle();
+        expect(find.text('メガシンカ'), findsOneWidget);
+        expect(find.text('メガリザードンX'), findsOneWidget);
+        expect(find.text('メガリザードンY'), findsOneWidget);
+        // メガシンカしたあとのタイプ（X は ほのお・ドラゴン、Y は ほのお・ひこう）
+        expect(find.text('ドラゴン'), findsOneWidget);
+        expect(find.text('ひこう'), findsOneWidget);
+      });
+
+      testWidgets('$name: メガシンカしないポケモンには、メガシンカの欄はない', (tester) async {
+        await pumpApp(tester, size, const ZukanDetailScreen(id: 4), found: {4});
+        await tester.scrollUntilVisible(
+          find.text('しんか'),
+          200,
+          scrollable: find.byType(Scrollable).first,
+        );
+        await tester.drag(find.byType(ListView), const Offset(0, -2000));
+        await tester.pumpAndSettle();
+        expect(find.text('メガシンカ'), findsNothing);
+      });
     }
   });
 }

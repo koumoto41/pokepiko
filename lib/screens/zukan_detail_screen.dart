@@ -4,6 +4,7 @@ import 'package:material_ui/material_ui.dart';
 import '../app_theme.dart';
 import '../data/poke_api_client.dart';
 import '../models/dex_entry.dart';
+import '../models/mega.dart';
 import '../models/pokemon.dart';
 import '../providers/collection_provider.dart';
 import '../providers/data_providers.dart';
@@ -131,6 +132,10 @@ class _DetailBody extends ConsumerWidget {
         if (entry.evolution.length > 1) ...[
           const SizedBox(height: 12),
           _EvolutionCard(entry: entry, currentId: pokemon.id),
+        ],
+        if (Mega.of(pokemon.id) case final megas when megas.isNotEmpty) ...[
+          const SizedBox(height: 12),
+          _MegaCard(megas: megas),
         ],
       ],
     );
@@ -519,6 +524,105 @@ class _EvolutionMember extends ConsumerWidget {
           ],
         ),
       ),
+    );
+  }
+}
+
+/// メガシンカのすがた（絵・名前・タイプ）
+/// 1つだけなら大きく、2つ以上（X・Y など）なら横に並べる
+class _MegaCard extends StatelessWidget {
+  final List<MegaForm> megas;
+
+  const _MegaCard({required this.megas});
+
+  static const _purple = Color(0xFF8E44AD);
+
+  @override
+  Widget build(BuildContext context) {
+    final single = megas.length == 1;
+
+    return Card(
+      margin: EdgeInsets.zero,
+      // メガシンカは特別なので、むらさきのふちどり
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(20),
+        side: const BorderSide(color: _purple, width: 3),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          children: [
+            const Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(Icons.auto_awesome, color: _purple, size: 24),
+                SizedBox(width: 4),
+                Text(
+                  'メガシンカ',
+                  style: TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold,
+                    color: _purple,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            // LayoutBuilder：カードの横幅に合わせて、1つ分の幅を決める
+            LayoutBuilder(
+              builder: (context, constraints) {
+                final width = single
+                    ? constraints.maxWidth
+                    : (constraints.maxWidth - 8) / 2;
+                return Wrap(
+                  alignment: WrapAlignment.center,
+                  spacing: 8,
+                  runSpacing: 12,
+                  children: [
+                    for (final mega in megas)
+                      SizedBox(
+                        width: width,
+                        child: _MegaMember(
+                          mega: mega,
+                          imageHeight: single ? 160 : 110,
+                        ),
+                      ),
+                  ],
+                );
+              },
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _MegaMember extends StatelessWidget {
+  final MegaForm mega;
+  final double imageHeight;
+
+  const _MegaMember({required this.mega, required this.imageHeight});
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      children: [
+        SizedBox(
+          height: imageHeight,
+          child: CachedImage(url: PokeApiClient.artworkUrl(mega.id)),
+        ),
+        const SizedBox(height: 4),
+        FittedBox(
+          fit: BoxFit.scaleDown,
+          child: Text(
+            mega.name,
+            style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+          ),
+        ),
+        const SizedBox(height: 4),
+        TypeBadges(types: mega.types, fontSize: 14),
+      ],
     );
   }
 }
