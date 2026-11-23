@@ -5,13 +5,15 @@ import '../../models/pokemon.dart';
 import '../../models/quiz_settings.dart';
 import 'choice_button.dart';
 import 'pokemon_image.dart';
+import 'type_badge.dart';
 
-/// 絵で選ぶ選択肢（タイプ→ポケモンのクイズで使う）
+/// 絵で選ぶ選択肢（タイプ→ポケモン・あいしょうのクイズで使う）
 /// 答えたあとは、ふちの色で正解・不正解を見せて、名前も出す
 class ImageChoice extends StatefulWidget {
   final Pokemon pokemon;
   final QuizMode mode;
   final ChoiceLook look;
+  final bool showTypes; // 絵の下にタイプを出すか（あいしょうクイズ）
   final VoidCallback? onPressed; // null だと押せない
 
   const ImageChoice({
@@ -19,6 +21,7 @@ class ImageChoice extends StatefulWidget {
     required this.pokemon,
     required this.mode,
     this.look = ChoiceLook.normal,
+    this.showTypes = false,
     this.onPressed,
   });
 
@@ -86,6 +89,16 @@ class _ImageChoiceState extends State<ImageChoice> {
                       ),
                     ),
                   ),
+                if (widget.showTypes) ...[
+                  const SizedBox(height: 4),
+                  FittedBox(
+                    fit: BoxFit.scaleDown,
+                    child: TypeBadges(
+                      types: widget.pokemon.types,
+                      fontSize: 16,
+                    ),
+                  ),
+                ],
               ],
             ),
           ),

@@ -44,7 +44,7 @@ iPhone SE（第3世代）のシミュレーターは ID `B0AA6DCC-29B3-4D75-BE70
 SCREENSHOT_DIR=<保存先> flutter drive --driver=test_driver/integration_test.dart --target=integration_test/screenshot_test.dart -d B0AA6DCC-29B3-4D75-BE70-111FF69E85A0
 ```
 
-- `integration_test/screenshot_*_test.dart` がある（なまえクイズ・タイプクイズ・図鑑・進化のお祝い・全問正解・タイトル・でんせつ・タイプの相性）。本物の PokéAPI を使う。
+- `integration_test/screenshot_*_test.dart` がある（なまえクイズ・タイプクイズ・あいしょうクイズ・図鑑・進化のお祝い・全問正解・タイトル・でんせつ・タイプの相性）。本物の PokéAPI を使う。
 - 大きい画面の確認は iPhone 18 Pro Max（ID `1D0DE787-1E81-4FF4-9346-47D35B2959A6`）。ユーザーが iPhone 18 Pro を使っていることがあるので、そちらでは撮らない。
 - 音が鳴るかは聞けないので、`AudioPlayer` で `AssetSource` を再生して `state == playing` と長さ（`getDuration`）を確かめる。鳴き声は `SoLoud` で `loadFile` → `play` して確かめる。
 - 初回ビルドは数分かかるので、バックグラウンドで実行してログをファイルに残す。
@@ -66,12 +66,13 @@ SCREENSHOT_DIR=<保存先> flutter drive --driver=test_driver/integration_test.d
 
 `QuizSettings`（`lib/models/quiz_settings.dart`）の組み合わせで遊ぶクイズが決まる：
 
-- `QuizKind`（なまえ／タイプ／でんせつ）＋ `TypeDirection`（ポケモン→タイプ／タイプ→ポケモン）→ `QuizVariant`（4種類）
+- `QuizKind`（なまえ／タイプ／でんせつ／あいしょう）＋ `TypeDirection`（ポケモン→タイプ／タイプ→ポケモン）→ `QuizVariant`（5種類）
 - でんせつクイズは、伝説・幻だけのなまえクイズ。世代の選択に関係なく全世代の伝説・幻から出す（第1世代だけだと5匹しかいないため）。
+- あいしょうクイズは、2匹を「VS」で並べて、タイプの相性で勝つほうを選ぶ。判定は `lib/models/matchup.dart` の `Matchup`：自分のタイプのわざで攻撃し、2タイプの相手は倍率をかけ算する。「相手にばつぐん（2倍以上）で、相手からはばつぐんを受けない」ほうが勝ち。はっきりしない組み合わせは出さない。答えたあと「みずは ほのおに つよい」と理由を出す（`Question.reason`）。シルエットのときは、タイプも答えるまで見せない。
 - `QuizMode`：画像の見せかた（イラスト／ドット／シルエット）。どのクイズでも使う
 - `generations`：出題する世代（`Generation.all` に図鑑番号の範囲を固定で持つ）
 
-`Question`（`lib/models/question.dart`）は、3種類のクイズを1つの形で表す。選択肢は `pokemonChoices` か `typeChoices` のどちらかで、正解は `correctIndex`、回答は「何番目の選択肢か」（`QuizController.answer(int)`）で受け取る。
+`Question`（`lib/models/question.dart`）は、すべてのクイズを1つの形で表す。選択肢は `pokemonChoices` か `typeChoices` のどちらかで、正解は `correctIndex`、回答は「何番目の選択肢か」（`QuizController.answer(int)`）で受け取る。
 
 ### 出題の流れ（`lib/providers/quiz_controller.dart`）
 
@@ -80,6 +81,7 @@ SCREENSHOT_DIR=<保存先> flutter drive --driver=test_driver/integration_test.d
 - `_gameId` で古いゲームの非同期処理を無視する（`retry` → `invalidateSelf` のときに2ゲームが同時に進まないように）。
 - ポケモン選びは `_pickPokemon` に集約している。オンラインなら画像をその場で保存し、通信に失敗したらそのゲーム中は `_offline = true` にして、保存済みのポケモンだけで出題する。
 - タイプクイズでは、正解が1つだけになるように選ぶ：2タイプのポケモンはタイプを片方だけ選択肢に入れる。タイプ→ポケモンでは、はずれにそのタイプを持たないポケモンを選ぶ。
+- あいしょうクイズでは、1匹目を選んでから勝ち負けがはっきりする相手を探す。見つからない1匹目（ノーマルだけ など）なら、1匹目を選び直す（`_pickPokemon` の失敗をオフライン扱いにしないため）。
 
 ### データ取得とキャッシュ（`lib/data/`）
 

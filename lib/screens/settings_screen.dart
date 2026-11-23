@@ -25,11 +25,13 @@ class SettingsScreen extends ConsumerWidget {
     QuizKind.name: Icons.badge,
     QuizKind.type: Icons.local_fire_department,
     QuizKind.legendary: Icons.auto_awesome,
+    QuizKind.matchup: Icons.compare_arrows,
   };
   static const _kindColors = {
     QuizKind.name: Colors.teal,
     QuizKind.type: Colors.deepPurple,
     QuizKind.legendary: Color(0xFFF9A825), // 金色
+    QuizKind.matchup: Colors.blue,
   };
   static const _modeColors = {
     QuizMode.illustration: Colors.orange,
@@ -84,7 +86,8 @@ class SettingsScreen extends ConsumerWidget {
                           mainAxisSpacing: 8,
                           crossAxisSpacing: 8,
                           // 横長のタイル（左に絵、右に数字）。縦の幅を節約して、SE でもモードまで見えるように
-                          childAspectRatio: 1.6,
+                          // （クイズの種類が2段になったので、SE ではさらに低くする）
+                          childAspectRatio: context.isCompactHeight ? 2.0 : 1.6,
                           children: [
                             for (final g in Generation.all)
                               _GenerationTile(
@@ -111,9 +114,10 @@ class SettingsScreen extends ConsumerWidget {
                     const SizedBox(height: 16),
                     const _SectionTitle('モード'),
                     const SizedBox(height: 8),
-                    // クイズの種類
+                    // クイズの種類（4つあるので、2つずつ2段に並べる）
                     _OptionRow<QuizKind>(
                       values: QuizKind.values,
+                      perRow: 2,
                       selected: settings.kind,
                       label: (k) => '${k.label}クイズ',
                       icon: (k) => _kindIcons[k]!,
@@ -541,6 +545,7 @@ class _OptionRow<T> extends StatelessWidget {
   final IconData Function(T)? icon;
   final Color Function(T) color;
   final void Function(T) onSelect;
+  final int? perRow; // 1段に並べる数（null なら全部を1段に）
 
   const _OptionRow({
     required this.values,
@@ -549,13 +554,26 @@ class _OptionRow<T> extends StatelessWidget {
     required this.color,
     required this.onSelect,
     this.icon,
+    this.perRow,
   });
 
   @override
   Widget build(BuildContext context) {
+    final n = perRow ?? values.length;
+    return Column(
+      children: [
+        for (var start = 0; start < values.length; start += n) ...[
+          if (start > 0) const SizedBox(height: 8),
+          _row(values.sublist(start, (start + n).clamp(0, values.length))),
+        ],
+      ],
+    );
+  }
+
+  Widget _row(List<T> rowValues) {
     return Row(
       children: [
-        for (final (i, v) in values.indexed) ...[
+        for (final (i, v) in rowValues.indexed) ...[
           if (i > 0) const SizedBox(width: 8),
           Expanded(
             child: _SelectTile(

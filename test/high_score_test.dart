@@ -44,9 +44,9 @@ void main() {
   HighScoresController controller() =>
       container.read(highScoresProvider.notifier);
 
-  test('はじめはどの区分も 0（クイズ4種類 × 画像3種類）', () async {
+  test('はじめはどの区分も 0（クイズ5種類 × 画像3種類）', () async {
     final scores = await container.read(highScoresProvider.future);
-    expect(scores.length, 12);
+    expect(scores.length, 15);
     expect(scores.values, everyElement(0));
   });
 
