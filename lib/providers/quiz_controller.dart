@@ -3,6 +3,7 @@ import 'dart:math';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../models/matchup.dart';
 import '../models/poke_type.dart';
 import '../models/pokemon.dart';
 import '../models/question.dart';
@@ -101,6 +102,7 @@ class QuizController extends Notifier<QuizState> {
   static const timeLimitSeconds = 30; // 1問ごとの制限時間
   static const _nextDelay = Duration(seconds: 1); // 回答後、次の問題までの待ち時間
   static const _maxOnlineTries = 40; // 条件に合うポケモンを探すとき、ネットから取る数の上限
+  static const _maxMatchupAttempts = 3; // あいしょうで、1匹目を選び直す回数の上限
 
   final _random = Random();
   final _usedAnswerIds = <int>{}; // 同じポケモンを2回正解にしないため
@@ -276,6 +278,7 @@ class QuizController extends Notifier<QuizState> {
       QuizVariant.legendary => _createNameQuestion(pool, offline),
       QuizVariant.pokemonToType => _createPokemonToTypeQuestion(pool, offline),
       QuizVariant.typeToPokemon => _createTypeToPokemonQuestion(pool, offline),
+      QuizVariant.matchup => _createMatchupQuestion(pool, offline),
     };
     _usedAnswerIds.add(question.pokemon.id);
     return question;
@@ -373,6 +376,50 @@ class QuizController extends Notifier<QuizState> {
       pokemonChoices: choices,
       correctIndex: choices.indexOf(answer),
     );
+  }
+
+  /// あいしょう：2匹の絵を見せて、タイプの相性で勝つほうを選ぶ
+  /// 1匹目を選んでから、相性の勝ち負けがはっきりする相手を探す（勝つのはどちらでもよい）
+  Future<Question> _createMatchupQuestion(List<int> pool, bool offline) async {
+    for (var attempt = 1; ; attempt++) {
+      final first = await _pickPokemon(
+        pool,
+        offline: offline,
+        needImages: true,
+        exclude: _usedAnswerIds,
+        where: (p) => p.types.isNotEmpty,
+      );
+      final Pokemon second;
+      try {
+        second = await _pickPokemon(
+          pool,
+          offline: offline,
+          needImages: true,
+          exclude: {first.id, ..._usedAnswerIds},
+          where: (p) =>
+              p.types.isNotEmpty &&
+              Matchup.winner(first.types, p.types) != null,
+        );
+      } on StateError {
+        // 相手が見つからない1匹目だった（ノーマルだけ など）。別の1匹目で選び直す
+        if (attempt >= _maxMatchupAttempts) rethrow;
+        continue;
+      } on NotEnoughOfflineDataException {
+        if (attempt >= _maxMatchupAttempts) rethrow;
+        continue;
+      }
+
+      final choices = [first, second]..shuffle(_random);
+      final correct = Matchup.winner(choices[0].types, choices[1].types)!;
+      final winner = choices[correct];
+      return Question(
+        variant: QuizVariant.matchup,
+        pokemon: winner,
+        pokemonChoices: choices,
+        correctIndex: correct,
+        reason: Matchup.reason(winner.types, choices[1 - correct].types),
+      );
+    }
   }
 
   /// pool からランダムに、条件に合うポケモンを1匹選ぶ

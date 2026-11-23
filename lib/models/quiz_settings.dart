@@ -15,7 +15,8 @@ enum QuizMode {
 enum QuizKind {
   name('なまえ'), // ポケモンの名前を当てる
   type('タイプ'), // ポケモンのタイプを当てる
-  legendary('でんせつ'); // 伝説・幻だけの、名前を当てるクイズ
+  legendary('でんせつ'), // 伝説・幻だけの、名前を当てるクイズ
+  matchup('あいしょう'); // 2匹のうち、タイプの相性で勝つほうを当てる
 
   final String label;
   const QuizKind(this.label);
@@ -35,7 +36,8 @@ enum QuizVariant {
   name('なまえ'),
   pokemonToType('ポケモン→タイプ'),
   typeToPokemon('タイプ→ポケモン'),
-  legendary('でんせつ');
+  legendary('でんせつ'),
+  matchup('あいしょう');
 
   final String label;
   const QuizVariant(this.label);
@@ -77,6 +79,7 @@ class QuizSettings {
   QuizVariant get variant => switch (kind) {
     QuizKind.name => QuizVariant.name,
     QuizKind.legendary => QuizVariant.legendary,
+    QuizKind.matchup => QuizVariant.matchup,
     QuizKind.type => switch (typeDirection) {
       TypeDirection.pokemonToType => QuizVariant.pokemonToType,
       TypeDirection.typeToPokemon => QuizVariant.typeToPokemon,

@@ -186,6 +186,41 @@ void main() {
       await tester.pumpWidget(const SizedBox());
     });
 
+    for (final mode in [QuizMode.illustration, QuizMode.silhouette]) {
+      testWidgets('$name: あいしょう・${mode.label}（2匹から勝つほうを選ぶ）', (tester) async {
+        setSize(tester, size);
+        await tester.pumpWidget(
+          app(
+            const QuizScreen(),
+            settings: QuizSettings(kind: QuizKind.matchup, mode: mode),
+          ),
+        );
+        await tester.pump();
+        await tester.pump();
+        expect(find.text('あいしょうで かつのは どっち？'), findsOneWidget);
+        expect(find.byType(ImageChoice), findsNWidgets(2));
+        expect(find.text('VS'), findsOneWidget);
+        // シルエットのときは、答える前はタイプも出さない（影だけで考える）
+        final silhouette = mode == QuizMode.silhouette;
+        expect(find.byType(TypeBadges), findsNWidgets(silhouette ? 0 : 2));
+
+        final container = ProviderScope.containerOf(
+          tester.element(find.byType(QuizScreen)),
+        );
+        final q = container.read(quizControllerProvider).current!;
+        await tester.tap(find.byType(ImageChoice).at(q.correctIndex));
+        await tester.pump();
+        expect(container.read(quizControllerProvider).isCorrect, isTrue);
+        // 答えたあとは、タイプと勝つ理由を見せる
+        expect(find.byType(TypeBadges), findsNWidgets(2));
+        expect(
+          find.text('せいかい！ ${q.reason!.$1.label}は ${q.reason!.$2.label}に つよい'),
+          findsOneWidget,
+        );
+        await tester.pumpWidget(const SizedBox());
+      });
+    }
+
     testWidgets('$name: タイトル画面・設定画面', (tester) async {
       setSize(tester, size);
       await tester.pumpWidget(app(const TitleScreen()));
@@ -215,6 +250,10 @@ void main() {
             .any((w) => w.ignoring),
         isTrue,
       );
+
+      await tester.tap(find.text('あいしょうクイズ'));
+      await tester.pumpAndSettle();
+      expect(find.text('ポケモン→タイプ'), findsNothing);
     });
   }
 

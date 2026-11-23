@@ -1,6 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:pokepiko/models/legendary.dart';
+import 'package:pokepiko/models/matchup.dart';
 import 'package:pokepiko/models/question.dart';
 import 'package:pokepiko/models/quiz_settings.dart';
 import 'package:pokepiko/providers/data_providers.dart';
@@ -38,6 +39,8 @@ void main() {
           ..setTypeDirection(TypeDirection.typeToPokemon);
       case QuizVariant.legendary:
         settings.setKind(QuizKind.legendary);
+      case QuizVariant.matchup:
+        settings.setKind(QuizKind.matchup);
     }
     // autoDispose の Provider が勝手に捨てられないよう、見張っておく
     container.listen(quizControllerProvider, (_, _) {});
@@ -317,6 +320,49 @@ void main() {
       expect(answers.length, 10);
       // 第1世代の外の伝説・幻も出ている（全世代から出す）
       expect(answers.any((id) => id > 151), isTrue);
+      container.dispose();
+    });
+  });
+
+  group('あいしょうクイズ', () {
+    testWidgets('2匹のうち、相性で勝つほうが正解で、理由もわかる', (tester) async {
+      setUpContainer(variant: QuizVariant.matchup);
+      final answers = <int>{};
+      await playAll(tester, (q) {
+        expect(q.variant, QuizVariant.matchup);
+        expect(q.choiceCount, 2);
+        final [a, b] = q.pokemonChoices;
+        expect(a.id, isNot(b.id));
+        expect(Matchup.winner(a.types, b.types), q.correctIndex);
+        expect(q.pokemon, q.pokemonChoices[q.correctIndex]);
+        final loser = q.pokemonChoices[1 - q.correctIndex];
+        expect(q.reason, Matchup.reason(q.pokemon.types, loser.types));
+        answers.add(q.pokemon.id);
+      });
+      // 同じポケモンが2回正解になることはない
+      expect(answers.length, 10);
+      container.dispose();
+    });
+
+    testWidgets('間違えたら、勝つほうのポケモンが「おぼえてね」に入る', (tester) async {
+      setUpContainer(variant: QuizVariant.matchup);
+      await waitUntilAnswering(tester);
+      final q = question();
+      answer(1 - q.correctIndex);
+      expect(read().isCorrect, isFalse);
+      expect(read().wrongPokemons, [q.pokemon]);
+      container.dispose();
+    });
+
+    testWidgets('オフラインでは、2匹とも画像が保存済みのポケモンから出す', (tester) async {
+      setUpContainer(online: false, variant: QuizVariant.matchup);
+      final ids = List.generate(30, (i) => i + 1);
+      repo.saved.addAll(ids);
+      repo.savedImages.addAll(ids.where((id) => id.isEven));
+      await waitUntilAnswering(tester);
+      for (final p in question().pokemonChoices) {
+        expect(p.id.isEven, isTrue, reason: '${p.id}');
+      }
       container.dispose();
     });
   });

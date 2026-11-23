@@ -19,7 +19,7 @@ import 'widgets/timer_bar.dart';
 import 'widgets/type_badge.dart';
 
 /// クイズ画面：状態は QuizController が持ち、この画面は表示とタップの受付だけ
-/// クイズの種類（なまえ／ポケモン→タイプ／タイプ→ポケモン）で、出しかたを変える
+/// クイズの種類（なまえ／ポケモン→タイプ／タイプ→ポケモン／あいしょう）で、出しかたを変える
 class QuizScreen extends ConsumerWidget {
   const QuizScreen({super.key});
 
@@ -28,6 +28,7 @@ class QuizScreen extends ConsumerWidget {
     QuizVariant.pokemonToType: 'このポケモンの タイプは？',
     QuizVariant.typeToPokemon: 'このタイプの ポケモンは？',
     QuizVariant.legendary: 'このでんせつポケモン だーれだ？',
+    QuizVariant.matchup: 'あいしょうで かつのは どっち？',
   };
 
   @override
@@ -177,6 +178,24 @@ class QuizScreen extends ConsumerWidget {
               ),
             ),
             _Message(state: state, height: compact ? 40 : 48),
+          ] else if (question.variant == QuizVariant.matchup) ...[
+            // あいしょう：2匹を「VS」で左右に並べる
+            Expanded(
+              child: Stack(
+                alignment: Alignment.center,
+                children: [
+                  _MatchupChoices(
+                    question: question,
+                    state: state,
+                    mode: mode,
+                    onChoose: answered ? null : onChoose,
+                  ),
+                  ?effect,
+                  ?popup,
+                ],
+              ),
+            ),
+            _Message(state: state, height: compact ? 40 : 48),
           ] else ...[
             // なまえ・ポケモン→タイプ：上にポケモンの絵、下に4つのボタン
             Expanded(
@@ -297,6 +316,61 @@ class _ImageChoiceGrid extends StatelessWidget {
   }
 }
 
+/// あいしょう：2匹を左右に並べ、まんなかに「VS」を置く
+/// シルエットのときは、タイプも答えたあとに出す（影だけで考える）
+class _MatchupChoices extends StatelessWidget {
+  final Question question;
+  final QuizState state;
+  final QuizMode mode;
+  final void Function(int)? onChoose; // null だと押せない
+
+  const _MatchupChoices({
+    required this.question,
+    required this.state,
+    required this.mode,
+    required this.onChoose,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final showTypes =
+        mode != QuizMode.silhouette || state.status == QuizStatus.answered;
+    Widget cell(int i) => Expanded(
+      child: ImageChoice(
+        pokemon: question.pokemonChoices[i],
+        mode: mode,
+        look: _choiceLook(state, i),
+        showTypes: showTypes,
+        onPressed: onChoose == null ? null : () => onChoose!(i),
+      ),
+    );
+
+    // 縦に長くなりすぎないよう、カードは正方形に近い大きさまでにする
+    return Center(
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxHeight: 280),
+        child: Row(
+          children: [
+            cell(0),
+            const Padding(
+              padding: EdgeInsets.symmetric(horizontal: 6),
+              child: Text(
+                'VS',
+                style: TextStyle(
+                  fontSize: 26,
+                  fontWeight: FontWeight.w900,
+                  color: Colors.redAccent,
+                ),
+              ),
+            ),
+            cell(1),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
 /// 回答後のメッセージ（高さを固定して、ボタンの位置がずれないようにする）
 class _Message extends StatelessWidget {
   final QuizState state;
@@ -320,6 +394,10 @@ class _Message extends StatelessWidget {
             '${pokemon.name}は ${pokemon.types.map((t) => t.label).join('・')}',
       QuizVariant.typeToPokemon =>
         state.isCorrect ? 'せいかい！' : 'こたえは ${pokemon.name}',
+      // 勝つ理由を教える（例：みずは ほのおに つよい）
+      QuizVariant.matchup =>
+        '${state.isCorrect ? 'せいかい！ ' : ''}'
+            '${question.reason!.$1.label}は ${question.reason!.$2.label}に つよい',
     };
 
     return SizedBox(
