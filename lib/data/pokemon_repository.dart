@@ -1,6 +1,7 @@
 import 'dart:io';
 
 import '../models/dex_entry.dart';
+import '../models/mega.dart';
 import '../models/pokemon.dart';
 import 'cache_store.dart';
 import 'poke_api_client.dart';
@@ -60,10 +61,13 @@ class PokemonRepository {
     return url == null ? null : getImage(url);
   }
 
-  /// 図鑑で見るためのデータ（くわしいページ・鳴き声）を、まとめて保存しておく
+  /// 図鑑で見るためのデータ（くわしいページ・鳴き声・メガシンカの絵）を、まとめて保存しておく
   Future<void> downloadDex(int id) async {
     await getDexEntry(id);
     await getCry(id);
+    for (final mega in Mega.of(id)) {
+      await getImage(PokeApiClient.artworkUrl(mega.id));
+    }
   }
 
   /// 画像のファイル（保存済み → なければダウンロードして保存）

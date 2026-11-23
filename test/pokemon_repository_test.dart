@@ -145,6 +145,16 @@ void main() {
     expect(await cry!.readAsBytes(), [1, 2, 3]);
   });
 
+  test('メガシンカするポケモンは、メガシンカの絵も保存される', () async {
+    await newRepository().downloadDex(6); // リザードン（メガシンカX・Y）
+    online = false;
+    final repo = newRepository();
+    for (final id in [10034, 10035]) {
+      final file = await repo.getImage(PokeApiClient.artworkUrl(id));
+      expect(await file.readAsBytes(), [1, 2, 3]);
+    }
+  });
+
   test('まとめてダウンロードすると、図鑑データも保存される', () async {
     await newRepository().downloadAll(
       [25],
