@@ -44,7 +44,7 @@ iPhone SE（第3世代）のシミュレーターは ID `B0AA6DCC-29B3-4D75-BE70
 SCREENSHOT_DIR=<保存先> flutter drive --driver=test_driver/integration_test.dart --target=integration_test/screenshot_test.dart -d B0AA6DCC-29B3-4D75-BE70-111FF69E85A0
 ```
 
-- `integration_test/screenshot_*_test.dart` がある（なまえクイズ・タイプクイズ・あいしょうクイズ・図鑑・進化のお祝い・全問正解・タイトル・でんせつ・タイプの相性）。本物の PokéAPI を使う。
+- `integration_test/screenshot_*_test.dart` がある（なまえクイズ・タイプクイズ・あいしょうクイズ・図鑑・進化のお祝い・全問正解・タイトル・でんせつ・タイプの相性・図鑑かんせい）。本物の PokéAPI を使う。
 - 大きい画面の確認は iPhone 18 Pro Max（ID `1D0DE787-1E81-4FF4-9346-47D35B2959A6`）。ユーザーが iPhone 18 Pro を使っていることがあるので、そちらでは撮らない。
 - 音が鳴るかは聞けないので、`AudioPlayer` で `AssetSource` を再生して `state == playing` と長さ（`getDuration`）を確かめる。鳴き声は `SoLoud` で `loadFile` → `play` して確かめる。
 - 初回ビルドは数分かかるので、バックグラウンドで実行してログをファイルに残す。
@@ -103,6 +103,7 @@ SCREENSHOT_DIR=<保存先> flutter drive --driver=test_driver/integration_test.d
 - 図鑑データ（分類・説明文・高さ・重さ・鳴き声 URL・進化）は `DexEntry`。`cache/dex/{id}.json` にクイズ用とは別に保存する。正解したときと、設定画面の一括ダウンロードのときに `downloadDex` で保存しておき、オフラインでも見られるようにする。
 - 第9世代は PokéAPI に日本語の説明文がない（null のときは「せつめいは まだ ないよ」）。説明文は「ひらがな（ja-hrkt）／かんじ（ja）」を切りかえられ、`QuizSettings.dexKanji` に保存する。
 - 進化は段階ごとの図鑑番号（`[[172], [25], [26]]`。枝分かれは同じ段に並べる）。`PokeApiClient` は進化のつながりを URL ごとに使い回す。
+- ある世代のポケモンが全員みつかったら（図鑑がうまったら）、全画面の `DexCompleteScreen`（`lib/screens/dex_complete_screen.dart`）でお祝いする。いちばん豪華なファンファーレ（`se/dex_complete.wav`）と花火・回る金色の光。全世代がうまったら「ぜんこく ずかん かんせい」。出すのは、図鑑に増えたゲームの結果画面（伝説・幻のお祝いを閉じたあと）と、図鑑を開いたとき（進化の仲間のお祝いのあと）。お知らせ済みは `collection.announcedGenerations` に記録し、同じ世代は1回だけ（`takeNewlyCompletedGenerations`）。光と花火が動き続けるので、テストでは `pumpAndSettle` を使わない。
 - 進化の仲間（2匹以上）が全員みつかったら、図鑑を開いたときにお祝いする（`completedFamiliesProvider` → `takeNewlyCompletedFamilies`）。判定は保存済みの図鑑データだけを使う（`cachedDexEntry`。オフラインで遅くならないように）。お知らせ済みは `collection.announcedFamilies` に記録し、同じ仲間は1回だけ。
 - 鳴き声は PokéAPI では OGG（一部は拡張子が .ogg で中身が MP3）。iOS の標準機能（audioplayers）では OGG を再生できないので、鳴き声だけ `flutter_soloud`（5.2.2 に固定）の `CryPlayer` で鳴らす。
 
@@ -125,8 +126,8 @@ SCREENSHOT_DIR=<保存先> flutter drive --driver=test_driver/integration_test.d
 
 ### 画面と音
 
-- 画面遷移：タイトル → 設定 → クイズ → 結果、タイトル → 図鑑 → くわしいページ、タイトル → タイプの相性。ルートには `RouteNames` の名前をつける。BGM は各画面ではなく `BgmNavigatorObserver` が、一番上のルート名から切りかえる（ダイアログは無視）。新しい画面を追加したら名前と BGM の対応を足す。
-- BGM：タイトルは `Bgm.home`（昔の携帯ゲーム機風）、設定は `Bgm.title`（メニュー）、クイズは `Bgm.quiz`、図鑑とタイプの相性は `Bgm.zukan`（オルゴールのワルツ）、結果画面は BGM なし。
+- 画面遷移：タイトル → 設定 → クイズ → 結果（→ 図鑑かんせい）、タイトル → 図鑑（→ 図鑑かんせい）→ くわしいページ、タイトル → タイプの相性。ルートには `RouteNames` の名前をつける。BGM は各画面ではなく `BgmNavigatorObserver` が、一番上のルート名から切りかえる（ダイアログは無視）。新しい画面を追加したら名前と BGM の対応を足す。
+- BGM：タイトルは `Bgm.home`（昔の携帯ゲーム機風）、設定は `Bgm.title`（メニュー）、クイズは `Bgm.quiz`、図鑑は `Bgm.zukan`（オルゴールのワルツ）、タイプの相性は `Bgm.battle`（バトル風のかっこいい曲）、結果画面と図鑑かんせいの おめでとう画面は BGM なし。
 - タイトル画面は、図鑑でみつけたポケモン（0匹なら設定画面の代表9匹）から主役を1匹選び（押すと別のポケモンに入れかわる）、背景にシルエットを漂わせる（`lib/screens/widgets/title_decorations.dart`）。ずっと動き続けるので、テストでは `pumpAndSettle` を使わない。
 - 音は iPhone のマナーモード（サイレントスイッチ）に従う：`main()` で `SoundService.followSilentSwitch()` を呼び、audioplayers 全体を `respectSilence`（`ambient`）にしている。audioplayers は何もしないと `playback`（マナーモードでも鳴る）になる。`flutter_soloud` は音の設定をアプリに任せる作りなので、鳴き声もこれに従う。シミュレーターにはスイッチがないので、鳴らないことは実機で確かめる。
 - 動きのある演出は、iPhone の「動きを減らす」（`MediaQuery.disableAnimationsOf`）のときは出さない・止める。

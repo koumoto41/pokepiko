@@ -6,7 +6,8 @@ enum Bgm {
   home('bgm/home.wav'), // タイトル画面（昔の携帯ゲーム機風のピコピコした曲）
   title('bgm/title.wav'), // 設定画面（メニューの曲）
   quiz('bgm/quiz.wav'), // クイズ画面
-  zukan('bgm/zukan.wav'); // 図鑑（オルゴールのワルツ）
+  zukan('bgm/zukan.wav'), // 図鑑（オルゴールのワルツ）
+  battle('bgm/battle.wav'); // タイプの相性（バトルのような、かっこいい曲）
 
   final String path;
   const Bgm(this.path);

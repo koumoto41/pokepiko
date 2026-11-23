@@ -28,6 +28,21 @@ class CollectionStore {
   Future<void> writeAnnouncedFamilies(Set<String> keys) =>
       _prefs.setStringList(_announcedKey, keys.toList()..sort());
 
+  static const _announcedGenerationsKey = 'collection.announcedGenerations';
+
+  /// 「ずかん かんせい」とお知らせ済みの世代の番号
+  Future<Set<int>> readAnnouncedGenerations() async => {
+    for (final s
+        in await _prefs.getStringList(_announcedGenerationsKey) ??
+            const <String>[])
+      ?int.tryParse(s),
+  };
+
+  Future<void> writeAnnouncedGenerations(Set<int> numbers) =>
+      _prefs.setStringList(_announcedGenerationsKey, [
+        for (final n in numbers.toList()..sort()) '$n',
+      ]);
+
   // shared_preferences は数字のリストを保存できないので、文字のリストにする
   Future<void> write(Set<int> ids) => _prefs.setStringList(_key, [
     for (final id in ids.toList()..sort()) '$id',
