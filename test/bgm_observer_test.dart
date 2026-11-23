@@ -83,12 +83,20 @@ void main() {
     navigator.push(page(RouteNames.zukanDetail));
     await tester.pumpAndSettle();
     expect(sound.playing, Bgm.zukan);
-    // タイプの相性も、図鑑と同じ曲
+    // タイプの相性は、バトルのような曲。戻ると図鑑の曲に戻る
     navigator.push(page(RouteNames.typeChart));
     await tester.pumpAndSettle();
-    expect(sound.playing, Bgm.zukan);
+    expect(sound.playing, Bgm.battle);
     navigator.pop();
     await tester.pumpAndSettle();
+    expect(sound.playing, Bgm.zukan);
+    // 図鑑かんせいの おめでとう画面は BGM なし
+    navigator.push(page(RouteNames.dexComplete));
+    await tester.pumpAndSettle();
+    expect(sound.playing, isNull);
+    navigator.pop();
+    await tester.pumpAndSettle();
+    expect(sound.playing, Bgm.zukan);
     navigator
       ..pop()
       ..pop();

@@ -1,6 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../data/collection_store.dart';
+import '../models/generation.dart';
 import 'data_providers.dart';
 
 final collectionStoreProvider = Provider<CollectionStore>(
@@ -27,6 +28,25 @@ class CollectionController extends AsyncNotifier<Set<int>> {
     await ref.read(collectionStoreProvider).write(next);
     return true;
   }
+}
+
+/// 図鑑がうまった（ぜんぶみつけた）世代のうち、まだお知らせしていないものを返し、
+/// お知らせ済みとして記録する（同じ世代のお祝いは1回だけ）
+Future<List<Generation>> takeNewlyCompletedGenerations(WidgetRef ref) async {
+  final store = ref.read(collectionStoreProvider);
+  final found = await ref.read(collectionProvider.future);
+  final announced = await store.readAnnouncedGenerations();
+  final fresh = [
+    for (final g in Generation.all)
+      if (!announced.contains(g.number) && g.ids.every(found.contains)) g,
+  ];
+  if (fresh.isNotEmpty) {
+    await store.writeAnnouncedGenerations({
+      ...announced,
+      for (final g in fresh) g.number,
+    });
+  }
+  return fresh;
 }
 
 /// 進化の仲間を1つの文字にする（例：[3, 1, 2] → "1,2,3"）。お知らせ済みの記録に使う

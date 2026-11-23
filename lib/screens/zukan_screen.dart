@@ -6,6 +6,7 @@ import '../data/poke_api_client.dart';
 import '../models/generation.dart';
 import '../providers/collection_provider.dart';
 import '../providers/data_providers.dart';
+import 'dex_complete_screen.dart';
 import 'route_names.dart';
 import 'widgets/cached_image.dart';
 import 'widgets/family_complete_dialog.dart';
@@ -28,17 +29,25 @@ class _ZukanScreenState extends ConsumerState<ZukanScreen> {
   @override
   void initState() {
     super.initState();
-    // 画面が出たあとで、新しくそろった進化の仲間がいればお祝いする
-    WidgetsBinding.instance.addPostFrameCallback((_) => _announceFamilies());
+    // 画面が出たあとで、新しくそろった進化の仲間や、うまった世代があればお祝いする
+    WidgetsBinding.instance.addPostFrameCallback((_) => _announce());
   }
 
-  Future<void> _announceFamilies() async {
-    final fresh = await takeNewlyCompletedFamilies(ref);
-    if (fresh.isEmpty || !mounted) return;
-    await showDialog<void>(
-      context: context,
-      builder: (_) => FamilyCompleteDialog(families: fresh),
-    );
+  /// 進化の仲間のお祝い → 図鑑かんせいの おめでとう画面 の順に出す
+  /// （結果画面ですぐ閉じたときなど、お祝いしそびれた世代もここで出す）
+  Future<void> _announce() async {
+    final families = await takeNewlyCompletedFamilies(ref);
+    if (!mounted) return;
+    if (families.isNotEmpty) {
+      await showDialog<void>(
+        context: context,
+        builder: (_) => FamilyCompleteDialog(families: families),
+      );
+      if (!mounted) return;
+    }
+    final generations = await takeNewlyCompletedGenerations(ref);
+    if (generations.isEmpty || !mounted) return;
+    await Navigator.of(context).push(DexCompleteScreen.route(generations));
   }
 
   @override

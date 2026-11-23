@@ -142,7 +142,7 @@ class _LegendaryFoundDialogState extends ConsumerState<LegendaryFoundDialog>
                             child: AnimatedBuilder(
                               animation: _rays,
                               builder: (context, _) => CustomPaint(
-                                painter: _RaysPainter(_rays.value * 2 * pi),
+                                painter: RaysPainter(_rays.value * 2 * pi),
                               ),
                             ),
                           ),
@@ -221,9 +221,9 @@ class _LegendaryFoundDialogState extends ConsumerState<LegendaryFoundDialog>
 }
 
 /// 金色の光（放射状の線）を、angle だけ回して描く
-class _RaysPainter extends CustomPainter {
+class RaysPainter extends CustomPainter {
   final double angle;
-  _RaysPainter(this.angle);
+  RaysPainter(this.angle);
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -263,5 +263,5 @@ class _RaysPainter extends CustomPainter {
   }
 
   @override
-  bool shouldRepaint(_RaysPainter old) => old.angle != angle;
+  bool shouldRepaint(RaysPainter old) => old.angle != angle;
 }

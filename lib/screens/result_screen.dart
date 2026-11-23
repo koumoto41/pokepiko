@@ -5,8 +5,10 @@ import '../app_theme.dart';
 import '../models/pokemon.dart';
 import '../models/quiz_settings.dart';
 import '../models/score.dart';
+import '../providers/collection_provider.dart';
 import '../providers/high_score_provider.dart';
 import '../providers/sound_provider.dart';
+import 'dex_complete_screen.dart';
 import 'quiz_screen.dart';
 import 'route_names.dart';
 import 'widgets/cached_image.dart';
@@ -88,16 +90,26 @@ class _ResultScreenState extends ConsumerState<ResultScreen> {
     ref
         .read(soundServiceProvider)
         .playJingle(ResultRank.of(widget.correctCount, widget.total).jingle);
-    // 伝説・幻をはじめて見つけていたら、結果を少し見せてから特別なお祝い
+    // 伝説・幻をはじめて見つけた・図鑑がうまったら、特別なお祝い
+    if (widget.legendsFound.isNotEmpty || widget.newlyFound > 0) _celebrate();
+  }
+
+  /// 結果を少し見せてから、伝説・幻のお祝い → 図鑑かんせいの おめでとう画面 の順に出す
+  Future<void> _celebrate() async {
+    await Future<void>.delayed(const Duration(milliseconds: 1500));
+    if (!mounted) return;
     if (widget.legendsFound.isNotEmpty) {
-      Future.delayed(const Duration(milliseconds: 1500), () {
-        if (!mounted) return;
-        showDialog<void>(
-          context: context,
-          builder: (_) => LegendaryFoundDialog(pokemons: widget.legendsFound),
-        );
-      });
+      await showDialog<void>(
+        context: context,
+        builder: (_) => LegendaryFoundDialog(pokemons: widget.legendsFound),
+      );
+      if (!mounted) return;
     }
+    // 図鑑にポケモンが増えたときだけ、世代がうまったかを調べる
+    if (widget.newlyFound == 0) return;
+    final generations = await takeNewlyCompletedGenerations(ref);
+    if (generations.isEmpty || !mounted) return;
+    await Navigator.of(context).push(DexCompleteScreen.route(generations));
   }
 
   @override

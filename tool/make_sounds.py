@@ -337,6 +337,77 @@ def make_home_bgm():
     return buf
 
 
+def make_battle_bgm():
+    """タイプの相性の画面：バトルのような、かっこよくて走る曲（ホ短調・168BPM・16小節ループ）
+    チップチューン風の音で、走るベース・16分の分散和音・ドラムを重ねる"""
+    eighth = 60 / 168 / 2
+    bars = 16
+    buf = [0.0] * int(round(bars * 8 * eighth * RATE))
+    lead = pulse_table(0.25)
+    arp = pulse_table(0.125)
+    bass = wave_table()
+
+    melody = [
+        "E5 - B4 E5 G5 - F#5 E5", "F#5 - D5 - B4 - . .",
+        "C5 E5 G5 - E5 G5 C6 -", "D6 - C6 B5 A5 - F#5 -",
+        "G5 - E5 G5 B5 - A5 G5", "A5 - B5 - E5 - . E5",
+        "G5 - E5 C5 G5 - A5 B5", "D#5 - F#5 - B5 - A5 F#5",
+        "A5 - C6 - E6 - C6 A5", "B5 - A5 G5 A5 - E5 -",
+        "G5 - B5 - E6 - D6 B5", "E6 - - - B5 - G5 -",
+        "C6 - B5 C6 E6 - C6 G5", "D6 - C6 D6 F#6 - D6 A5",
+        "B5 - A5 G5 F#5 - D#5 -", "B4 . B4 . D#5 . F#5 .",
+    ]
+    # 小節ごとの和音（ベースの根音と、分散和音の4音）
+    chords = [
+        ("E", ["E4", "G4", "B4", "E5"]), ("E", ["E4", "G4", "B4", "E5"]),
+        ("C", ["C4", "E4", "G4", "C5"]), ("D", ["D4", "F#4", "A4", "D5"]),
+        ("E", ["E4", "G4", "B4", "E5"]), ("E", ["E4", "G4", "B4", "E5"]),
+        ("C", ["C4", "E4", "G4", "C5"]), ("B", ["B3", "D#4", "F#4", "B4"]),
+        ("A", ["A3", "C4", "E4", "A4"]), ("A", ["A3", "C4", "E4", "A4"]),
+        ("E", ["E4", "G4", "B4", "E5"]), ("E", ["E4", "G4", "B4", "E5"]),
+        ("C", ["C4", "E4", "G4", "C5"]), ("D", ["D4", "F#4", "A4", "D5"]),
+        ("B", ["B3", "D#4", "F#4", "B4"]), ("B", ["B3", "D#4", "F#4", "B4"]),
+    ]
+
+    # メロディ（'-' はのばす、'.' は休み）
+    steps = [n for bar in melody for n in bar.split()]
+    i = 0
+    while i < len(steps):
+        length = 1
+        while i + length < len(steps) and steps[i + length] == "-":
+            length += 1
+        if steps[i] not in ("-", "."):
+            chip(buf, i * eighth, length * eighth * 0.92, freq(steps[i]), 0.22, lead)
+        i += length
+
+    sixteenth = eighth / 2
+    for b, (root, tones) in enumerate(chords):
+        bar = b * 8 * eighth
+        # 分散和音：16分音符で 1・2・3・4・3・2… と上り下り（せかせかした緊張感）
+        order = [0, 1, 2, 3, 2, 1, 2, 3] * 2
+        for k, j in enumerate(order):
+            chip(buf, bar + k * sixteenth, sixteenth * 0.8, freq(tones[j]), 0.07, arp)
+        # ベース：8分音符で「低・低・高・低」をくり返して走る
+        low = root + ("2" if root in ("A", "B") else "3")
+        high = root + ("3" if root in ("A", "B") else "4")
+        for e in range(8):
+            note = high if e % 4 == 2 else low
+            chip(buf, bar + e * eighth, eighth * 0.75, freq(note), 0.30, bass)
+        # ドラム：1拍目と2拍目のうら・3拍目にバスドラム、2・4拍目にスネア、8分でハイハット
+        for e in (0, 3, 4):
+            chip_kick(buf, bar + e * eighth, 0.28)
+        for e in (2, 6):
+            chip_noise(buf, bar + e * eighth, 0.12, 0.26, seed=2000 + b * 8 + e)
+        for e in range(8):
+            chip_noise(buf, bar + e * eighth, 0.025, 0.07, seed=3000 + b * 8 + e)
+        # 4小節ごとの最後は、スネアを連打して次へつなぐ
+        if b % 4 == 3:
+            for k in range(4):
+                chip_noise(buf, bar + 6 * eighth + k * sixteenth, 0.07,
+                           0.14 + 0.04 * k, seed=4000 + b * 4 + k)
+    return buf
+
+
 # ---------------------------------------------------------------
 # 結果画面のジングル（正解数の段ごとに1曲。くり返さず1回だけ鳴らす）
 # ---------------------------------------------------------------
@@ -473,6 +544,73 @@ def make_result_try():
     return buf
 
 
+def make_dex_complete():
+    """図鑑かんせい：いちばん豪華なファンファーレ（約12秒）
+    小太鼓とティンパニのロール → ハ長調のファンファーレ → 1音上げてニ長調で盛り上げ
+    → 大きな和音・シンバル・きらきら上がる音"""
+    beat = 0.19  # 8分音符1つの長さ（秒）
+    buf = [0.0] * int(12.5 * RATE)
+    # 小太鼓のロール（だんだん速く、だんだん強く）と、下でゴロゴロ鳴るティンパニ
+    t = 0.0
+    k = 0
+    while t < 1.2:
+        snare(buf, t, vol=0.08 + 0.22 * t, length=0.08, seed=100 + k)
+        t += 0.085 - 0.04 * t
+        k += 1
+    for j in range(20):
+        timpani(buf, j * 0.06, f=65, vol=0.05 + 0.006 * j, length=0.2)
+    o = 1.25 / beat  # ロールのあとから始める（拍の単位）
+
+    # 前半（ハ長調）と後半（ニ長調）のメロディ
+    melody = [
+        (0, 1, "C5"), (1, 1, "C5"), (2, 1, "C5"), (3, 3, "G5"),
+        (6, 1, "F5"), (7, 1, "E5"), (8, 1, "D5"), (9, 3, "C6"),
+        (12, 1, "G5"), (13, 1, "A5"), (14, 1, "B5"), (15, 3, "C6"),
+        (18, 2, "B5"), (20, 2, "A5"), (22, 4, "G5"),
+        (28, 1, "D5"), (29, 1, "D5"), (30, 1, "D5"), (31, 3, "A5"),
+        (34, 1, "G5"), (35, 1, "F#5"), (36, 1, "E5"), (37, 3, "D6"),
+        (40, 1, "A5"), (41, 1, "B5"), (42, 1, "C#6"), (43, 10, "D6"),
+    ]
+    play(buf, [(o + s, l, n) for s, l, n in melody], brass, 0.28, beat,
+         release=0.8)
+    # 下で支えるラッパの和音
+    chords = [
+        (3, 3, ["E4", "G4"]), (9, 3, ["E5", "G5"]), (15, 3, ["E5", "G5"]),
+        (18, 4, ["D5", "F5"]), (22, 4, ["B4", "D5"]),
+        (31, 3, ["F#4", "A4"]), (37, 3, ["F#5", "A5"]),
+        (43, 10, ["F#5", "A5", "D5"]),
+    ]
+    for s, l, names in chords:
+        play(buf, [(o + s, l, n) for n in names], brass, 0.12, beat,
+             release=0.8)
+    # ベース
+    for s, l, n in [(3, 3, "C3"), (6, 3, "C3"), (9, 3, "A2"), (12, 3, "F2"),
+                    (15, 3, "C3"), (18, 4, "G2"), (22, 4, "G2"),
+                    (31, 3, "D3"), (34, 3, "D3"), (37, 3, "B2"), (40, 3, "A2"),
+                    (43, 10, "D3")]:
+        play(buf, [(o + s, l, n)], triangle, 0.35, beat)
+    # ティンパニ
+    for s, f in [(0, 98), (3, 65), (9, 55), (15, 65), (18, 98), (22, 98),
+                 (31, 73), (37, 62), (40, 110)]:
+        timpani(buf, (o + s) * beat, f=f, vol=0.42)
+    # 転調の前：小太鼓の連打で盛り上げる
+    for j in range(8):
+        snare(buf, (o + 24) * beat + j * beat / 2, vol=0.12 + 0.03 * j,
+              length=0.07, seed=300 + j)
+    # 最後：ティンパニのロール → ドーン ＋ シンバル
+    for j in range(10):
+        timpani(buf, (o + 41) * beat + j * 0.05, f=73, vol=0.18, length=0.2)
+    timpani(buf, (o + 43) * beat, f=73, vol=0.5, length=2.0)
+    play(buf, [(o + 43, 10, "D2")], triangle, 0.4, beat, release=0.8)
+    cymbal(buf, (o + 43) * beat, vol=0.24, length=3.0)
+    # きらきら：最後の和音の上で、鈴の音がかけ上がる
+    sparkle = ["D6", "F#6", "A6", "D7", "F#7", "A7"]
+    for j, n in enumerate(sparkle * 2):
+        tone(buf, (o + 44) * beat + j * 0.09, 0.3, freq(n), 0.10, bell,
+             attack=0.005, decay=4, release=0.3)
+    return buf
+
+
 if __name__ == "__main__":
     out = Path(sys.argv[1])
     save(out / "se" / "correct.wav", make_correct())
@@ -485,3 +623,5 @@ if __name__ == "__main__":
     save(out / "se" / "result_great.wav", make_result_great(), peak=0.7)
     save(out / "se" / "result_good.wav", make_result_good(), peak=0.7)
     save(out / "se" / "result_try.wav", make_result_try(), peak=0.7)
+    save(out / "bgm" / "battle.wav", make_battle_bgm(), peak=0.6)
+    save(out / "se" / "dex_complete.wav", make_dex_complete(), peak=0.85)

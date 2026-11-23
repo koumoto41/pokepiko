@@ -7,4 +7,5 @@ abstract final class RouteNames {
   static const zukan = 'zukan';
   static const zukanDetail = 'zukanDetail';
   static const typeChart = 'typeChart';
+  static const dexComplete = 'dexComplete'; // 図鑑かんせいの おめでとう画面
 }
